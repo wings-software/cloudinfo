@@ -234,7 +234,7 @@ func TestCloudInfo_GetSeries(t *testing.T) {
 					},
 				})
 
-				assert.EqualValues(t, seriesDetails, []types.SeriesDetails{
+				assert.ElementsMatch(t, seriesDetails, []types.SeriesDetails{
 					{Series: "series0", Category: types.CategoryGeneral, InstanceTypes: []string{"instanceType00"}},
 					{Series: "series1", Category: types.CategoryCompute, InstanceTypes: []string{"instanceType10", "instanceType11"}},
 					{Series: "series2", Category: types.CategoryMemory, InstanceTypes: []string{"instanceType20", "instanceType21", "instanceType22"}},
