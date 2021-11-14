@@ -27,7 +27,7 @@ import (
 var (
 	categoryMap = map[string][]string{
 		types.CategoryGeneral: {"Dv2", "Av2", "Dv3", "DSv2", "DSv3", "BS", "DS", "D", "A0_A7", "A", "A8_A11", "DCS"},
-		types.CategoryCompute: {"H", "FSv2", "FS", "", "HCS", "HBS"},
+		types.CategoryCompute: {"H", "FSv2", "FS", "F", "", "HCS", "HBS"},
 		types.CategoryMemory:  {"Ev3", "ESv3", "MS", "G", "GS", "EIv3", "EISv3", "PBS", "MSv2", "MDSv2", "EDSv4", "ESv4"},
 		types.CategoryStorage: {"LS", "LSv2"},
 		types.CategoryGpu:     {"NC", "NV", "NCSv3", "NCSv2", "NDS", "NVSv2", "NVSv3", "ND"},
