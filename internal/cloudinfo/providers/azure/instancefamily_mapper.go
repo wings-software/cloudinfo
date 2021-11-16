@@ -26,7 +26,7 @@ import (
 
 var (
 	categoryMap = map[string][]string{
-		types.CategoryGeneral: {"Dv2", "Av2", "Dv3", "DSv2", "DSv3", "BS", "DS", "D", "A0_A7", "A", "A8_A11", "DCS"},
+		types.CategoryGeneral: {"Dv2", "Av2", "Dv3", "DSv2", "DSv3", "BS", "DS", "D", "A0_A7", "A", "A8_A11", "DCS", "DDv5", "DDv4", "Dv5", "Dv4", "DSv5", "DSv4", "DDSv5", "DAv4", "DDSv4", "DASv4", "DCSv3"},
 		types.CategoryCompute: {"H", "FSv2", "FS", "F", "", "HCS", "HBS"},
 		types.CategoryMemory:  {"Ev3", "ESv3", "MS", "G", "GS", "EIv3", "EISv3", "PBS", "MSv2", "MDSv2", "EDSv4", "ESv4"},
 		types.CategoryStorage: {"LS", "LSv2"},
@@ -41,6 +41,7 @@ var (
 		"NDASv4_A100":        "ND",
 		"XEIDSv4":            "EDSv4",
 		"XEISv4":             "ESv4",
+		"DDCSv3":             "DCDSv3",
 	}
 )
 
