@@ -69,10 +69,8 @@ func GetFamily(name string) string {
 	family = strings.TrimRight(family, "Promo")   // nolint: staticcheck
 	family = strings.TrimLeft(family, "basic")
 
-	for _, key := range customMap {
-		if key == family {
-			return customMap[family]
-		}
+	if value, ok := customMap[family]; ok {
+		return value
 	}
 
 	return family
