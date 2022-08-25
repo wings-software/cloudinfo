@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
-	contrib.go.opencensus.io/exporter/prometheus v0.3.0
+	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.0
 	emperror.dev/handler/logur v0.5.0
@@ -27,12 +27,13 @@ require (
 	github.com/gocql/gocql v0.0.0-20210515062232-b7ef815b4556
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/gomodule/redigo v2.0.0+incompatible
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/moogar0880/problems v0.1.1
 	github.com/oracle/oci-go-sdk v24.3.0+incompatible
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.11.0
-	github.com/prometheus/common v0.26.0
+	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/common v0.37.0
 	github.com/sagikazarmark/viperx v0.8.0
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
@@ -41,7 +42,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/vektah/gqlparser/v2 v2.2.0
 	go.opencensus.io v0.23.0
-	golang.org/x/oauth2 v0.0.0-20210615190721-d04028783cf1
+	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
 	google.golang.org/api v0.49.0
 	logur.dev/adapter/logrus v0.5.0
 	logur.dev/logur v0.17.0
