@@ -46,7 +46,7 @@ RUN set -xe && \
 
 # Final image
 # FROM alpine:3.14.0
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-854
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-902
 USER root
 
 # RUN apk add --update --no-cache ca-certificates tzdata bash curl
