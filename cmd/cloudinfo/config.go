@@ -99,6 +99,13 @@ type configuration struct {
 	// Log configuration
 	Log log.Config
 
+	// Profiling
+	Profiling struct {
+		Enabled     bool
+		ServiceName string
+		ProjectID   string
+	}
+
 	// Metrics configuration
 	Metrics struct {
 		Enabled bool
