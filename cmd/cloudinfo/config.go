@@ -103,6 +103,7 @@ type configuration struct {
 	Profiling struct {
 		Enabled     bool
 		ServiceName string
+		ProjectID   string
 	}
 
 	// Metrics configuration

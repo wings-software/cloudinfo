@@ -171,7 +171,7 @@ func main() {
 		logger.Info("profiling is enabled.", map[string]interface{}{
 			"service_name": config.Profiling.ServiceName,
 		})
-		err := profiler.StartProfiling(config.Profiling.ServiceName)
+		err := profiler.StartProfiling(config.Profiling.ServiceName, config.Profiling.ProjectID)
 		if err != nil {
 			logger.Error(err.Error())
 		}
