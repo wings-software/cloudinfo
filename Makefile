@@ -16,7 +16,7 @@ GCR_IMAGE_REPOSITORY ?= harness/cloudinfo
 BUILD_DIR ?= build
 VERSION_FILE := ./version
 
-VERSION := $(shell cat $(VERSION_FILE) | sed -E 's/version=//')
+VERSION := $(shell cat $(VERSION_FILE) | grep 'version=' | sed -e 's: *version=1.0.::g' | tr -d '\r\n')
 ifeq (${VERSION},)
 	VERSION := $(shell git describe --tags --exact-match 2>/dev/null)
 endif
