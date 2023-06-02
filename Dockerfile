@@ -1,14 +1,16 @@
 # UI build image
-FROM node:16.5.0 as frontend
+# Disabling UI build as it's not used.
 
-WORKDIR /web
-
-COPY web/package.json web/package-lock.json /web/
-
-RUN npm install --legacy-peer-deps
-
-COPY web/ /web/
-RUN npm run build-prod
+#FROM node:16.5.0 as frontend
+#
+#WORKDIR /web
+#
+#COPY web/package.json web/package-lock.json /web/
+#
+#RUN npm install --legacy-peer-deps
+#
+#COPY web/ /web/
+#RUN npm run build-prod
 
 
 # Build image
@@ -29,7 +31,7 @@ RUN go mod download
 
 COPY Makefile main-targets.mk /workspace/
 
-COPY --from=frontend /web/dist/web /workspace/web/dist/web
+#COPY --from=frontend /web/dist/web /workspace/web/dist/web
 COPY . /workspace
 
 ARG BUILD_TARGET
