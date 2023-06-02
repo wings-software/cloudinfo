@@ -14,11 +14,16 @@ GCR_IMAGE_REPOSITORY ?= harness/cloudinfo
 
 # Build variables
 BUILD_DIR ?= build
+VERSION_FILE := ./version
 
-VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null)
+VERSION := $(shell cat $(VERSION_FILE) | sed -E 's/version=//')
+ifeq (${VERSION},)
+	VERSION := $(shell git describe --tags --exact-match 2>/dev/null)
+endif
 ifeq (${VERSION},)
 	VERSION := $(shell git symbolic-ref -q --short HEAD | sed 's/[^a-zA-Z0-9]/-/g')
 endif
+
 
 COMMIT_HASH ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 BUILD_DATE ?= $(shell date +%FT%T%z)
