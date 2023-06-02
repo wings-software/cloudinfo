@@ -63,8 +63,8 @@ endif
 
 .PHONY: docker-push
 docker-push: ## Push Docker image to GCR
-	docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} gcr.io/${GCR_PROJECT_ID}/${DOCKER_IMAGE}:${DOCKER_TAG}
-	docker push gcr.io/${GCR_PROJECT_ID}/${DOCKER_IMAGE}:${DOCKER_TAG}
+	docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${GCR_IMAGE_LOCATION}
+	docker push ${GCR_IMAGE_LOCATION}
 
 .PHONY: docker-debug
 docker-debug: ## Build a Docker image with remote debugging capabilities
