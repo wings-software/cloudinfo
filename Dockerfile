@@ -14,12 +14,17 @@
 
 
 # Build image
-FROM golang:1.19.9-buster AS builder
+#FROM golang:1.19.9-buster AS builder
+FROM us.gcr.io/platform-205701/ubi/ubi-go:8.7 AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
 #RUN apk add --update --no-cache ca-certificates make git curl mercurial
-RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
+#RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
+
+USER root
+RUN microdnf update && microdnf install -y ca-certificates make git curl && microdnf clean all
+
 
 RUN mkdir -p /workspace
 WORKDIR /workspace
@@ -49,7 +54,7 @@ RUN set -xe && \
 
 # Final image
 # FROM alpine:3.14.0
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-854
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 USER root
 
 # RUN apk add --update --no-cache ca-certificates tzdata bash curl
