@@ -1,22 +1,30 @@
 # UI build image
-FROM node:16.5.0 as frontend
+# Disabling UI build as it's not used.
 
-WORKDIR /web
-
-COPY web/package.json web/package-lock.json /web/
-
-RUN npm install --legacy-peer-deps
-
-COPY web/ /web/
-RUN npm run build-prod
+#FROM node:16.5.0 as frontend
+#
+#WORKDIR /web
+#
+#COPY web/package.json web/package-lock.json /web/
+#
+#RUN npm install --legacy-peer-deps
+#
+#COPY web/ /web/
+#RUN npm run build-prod
 
 
 # Build image
-FROM golang:1.16-alpine3.13 AS builder
+#FROM golang:1.19.9-buster AS builder
+FROM us.gcr.io/platform-205701/ubi/ubi-go:8.7 AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
-RUN apk add --update --no-cache ca-certificates make git curl mercurial
+#RUN apk add --update --no-cache ca-certificates make git curl mercurial
+#RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
+
+USER root
+RUN microdnf update && microdnf install -y ca-certificates make git curl && microdnf clean all
+
 
 RUN mkdir -p /workspace
 WORKDIR /workspace
@@ -28,7 +36,7 @@ RUN go mod download
 
 COPY Makefile main-targets.mk /workspace/
 
-COPY --from=frontend /web/dist/web /workspace/web/dist/web
+#COPY --from=frontend /web/dist/web /workspace/web/dist/web
 COPY . /workspace
 
 ARG BUILD_TARGET
@@ -46,7 +54,7 @@ RUN set -xe && \
 
 # Final image
 # FROM alpine:3.14.0
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-854
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 USER root
 
 # RUN apk add --update --no-cache ca-certificates tzdata bash curl

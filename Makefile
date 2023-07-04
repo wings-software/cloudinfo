@@ -6,15 +6,24 @@ OS = $(shell uname | tr A-Z a-z)
 BUILD_PACKAGE ?= ./cmd/cloudinfo
 BINARY_NAME ?= cloudinfo
 DOCKER_IMAGE = banzaicloud/cloudinfo
+
+# Docker Push configuration
+GCR_HOST ?= us.gcr.io
 GCR_PROJECT_ID ?= platform-205701
+GCR_IMAGE_REPOSITORY ?= harness/cloudinfo
 
 # Build variables
 BUILD_DIR ?= build
+VERSION_FILE := ./version
 
-VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null)
+VERSION := $(shell cat $(VERSION_FILE) | grep 'version=' | sed -e 's: *version=1.0.::g' | tr -d '\r\n')
+ifeq (${VERSION},)
+	VERSION := $(shell git describe --tags --exact-match 2>/dev/null)
+endif
 ifeq (${VERSION},)
 	VERSION := $(shell git symbolic-ref -q --short HEAD | sed 's/[^a-zA-Z0-9]/-/g')
 endif
+
 
 COMMIT_HASH ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 BUILD_DATE ?= $(shell date +%FT%T%z)
@@ -30,6 +39,7 @@ endif
 
 # Docker variables
 DOCKER_TAG ?= ${VERSION}
+GCR_IMAGE_LOCATION = ${GCR_HOST}/${GCR_PROJECT_ID}/${GCR_IMAGE_REPOSITORY}:${DOCKER_TAG}
 
 MISSPELL_VERSION = 0.3.4
 GQLGEN_VERSION = 0.13.0

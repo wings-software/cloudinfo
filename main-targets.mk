@@ -44,7 +44,7 @@ ifneq (${IGNORE_GOLANG_VERSION_REQ}, 1)
 	@printf "${GOLANG_VERSION}\n$$(go version | awk '{sub(/^go/, "", $$3);print $$3}')" | sort -t '.' -k 1,1 -k 2,2 -k 3,3 -g | head -1 | grep -q -E "^${GOLANG_VERSION}$$" || (printf "Required Go version is ${GOLANG_VERSION}\nInstalled: `go version`" && exit 1)
 endif
 
-	go build ${GOARGS} -tags "${GOTAGS}" -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/${BINARY_NAME} ${BUILD_PACKAGE}
+	go build -buildvcs=false ${GOARGS} -tags "${GOTAGS}" -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/${BINARY_NAME} ${BUILD_PACKAGE}
 
 .PHONY: build-release
 build-release: ## Build all binaries without debug information
@@ -63,8 +63,8 @@ endif
 
 .PHONY: docker-push
 docker-push: ## Push Docker image to GCR
-	docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} gcr.io/${GCR_PROJECT_ID}/${DOCKER_IMAGE}:${DOCKER_TAG}
-	docker push gcr.io/${GCR_PROJECT_ID}/${DOCKER_IMAGE}:${DOCKER_TAG}
+	docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${GCR_IMAGE_LOCATION}
+	docker push ${GCR_IMAGE_LOCATION}
 
 .PHONY: docker-debug
 docker-debug: ## Build a Docker image with remote debugging capabilities
