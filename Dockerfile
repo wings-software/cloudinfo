@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM us.gcr.io/platform-205701/ubi/ubi-go:8.7 AS builder
+FROM us.gcr.io/platform-205701/ubi/ubi-go:8.8 AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
