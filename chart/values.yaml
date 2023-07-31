@@ -1,0 +1,150 @@
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccountName: ""
+
+image:
+  repository: ghcr.io/banzaicloud/cloudinfo
+  tag: 0.17.1
+  pullPolicy: IfNotPresent
+
+frontend:
+  replicaCount: 1
+
+  image: {}
+#    repository: ghcr.io/banzaicloud/cloudinfo
+#    tag: 0.17.1
+#    pullPolicy: IfNotPresent
+#
+  deployment:
+    labels: {}
+    annotations: {}
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: false
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    hosts:
+      - "/"
+
+    tls: []
+    #  - secretName: chart-example-tls
+    #    hosts:
+    #      - chart-example.local
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+scraper:
+  replicaCount: 1
+
+  image: {}
+  #    repository: ghcr.io/banzaicloud/cloudinfo
+  #    tag: 0.17.1
+  #    pullPolicy: IfNotPresent
+  #
+
+  deployment:
+    labels: {}
+    annotations: {}
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+app:
+  logLevel: "info"
+  basePath: "/"
+
+  vault:
+    enabled: false
+    address: ""
+    token: ""
+    secretPath: ""
+
+  # TODO: support TLS skip-verify
+
+providers:
+  # amazon:
+  #   enabled: true
+  #   accessKey: ""
+  #   secretKey: ""
+  # google:
+  #   enabled: true
+  #   credentials: ""
+  # alibaba:
+  #   enabled: true
+  #   region: "eu-central-1"
+  #   accessKey: ""
+  #   secretKey: ""
+  # oracle:
+  #   enabled: true
+  #   tenancy: ""
+  #   user: ""
+  #   region: ""
+  #   fingerprint: ""
+  #   privateKey: ""
+  #   privateKeyPassphrase: ""
+  # azure:
+  #   enabled: true
+  #   subscriptionId: ""
+  #   clientId: ""
+  #   clientSecret: ""
+  #   tenantId: ""
+
+store:
+  redis:
+    enabled: false
+    host: ""
+    port: 6379
+
+redis:
+  enabled: false
+  redisPort: 6379
+
+  # TODO: support redis password
+  usePassword: false
+  cluster:
+    enabled: false
+
+metrics:
+  enabled: true
+  name: metrics
+  port: 9900
+  serviceMonitor:
+    enabled: false
+    additionalLabels: {}
