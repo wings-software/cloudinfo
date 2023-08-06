@@ -36,7 +36,7 @@ image:
   repository: harness/ce-cloud-info-signed
   pullPolicy: IfNotPresent
 # Overrides the image tag whose default is the chart appVersion.
-  tag: "10302"
+  tag: "10303"
   digest: ""
 # image pull secrets to use for ce-cloud-info image
   imagePullSecrets: []

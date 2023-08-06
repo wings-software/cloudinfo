@@ -19,7 +19,7 @@ version: 0.8.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 # TODO What is this app version?
-appVersion: "1.773.0"
+appVersion: "0.0.10303"
 dependencies:
   - name: harness-common
     version: 1.x.x
