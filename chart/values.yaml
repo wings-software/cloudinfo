@@ -1,0 +1,112 @@
+# Default values for cloud-info
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+global:
+  loadbalancerURL: "https://test"
+  ingress:
+    enabled: false
+    className: harness
+    hosts:
+      - my-host.example.org
+    tls:
+      enabled: true
+      secretName: ''
+  istio:
+    enabled: false
+    gateway:
+      create: false
+    virtualService:
+      gateways:
+      hosts:
+# image pull secrets to use for every image
+  imagePullSecrets: []
+
+replicaCount: 1
+
+maxSurge: 100%
+
+maxUnavailable: 0
+
+java:
+  memory: "4096m"
+  memoryLimit: "4096m"
+
+image:
+  registry: docker.io
+  repository: harness/ce-cloud-info-signed
+  pullPolicy: IfNotPresent
+# Overrides the image tag whose default is the chart appVersion.
+  tag: "10303"
+  digest: ""
+# image pull secrets to use for ce-cloud-info image
+  imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  annotations: {}
+  name: "harness-default"
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8082
+  targetPort: 8000
+
+ingress:
+  className: nginx
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+# targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+CLOUD_INFO_GCP_CREDS: ""
+
+CLOUD_INFO_CONFIG: ""
+
+workloadIdentity:
+  enabled: false
+
+resources:
+  limits:
+    memory: "1536Mi"
+  requests:
+    cpu: "1536m"
+    memory: "1536Mi"
+
+# extraVolumes:
+#   - name: volume-test
+#     configMap:
+#       name: test-config
+#       # readOnly: true
+extraVolumes: []
+
+# extraVolumeMounts:
+#   - name: volume-test
+#     mountPath: /opt/harness/config
+extraVolumeMounts: []
+
+lifecycleHooks: {}
+# lifecycleHooks:
+#   postStart:
+#     exec:
+#       command:
+#   preStop:
+#     exec:
+#       command:
