@@ -32,7 +32,7 @@ basePath = "/"
 
 [scrape]
 enabled = true
-interval = "24h"
+interval = "2h"
 
 [provider.amazon]
 enabled = false
@@ -148,5 +148,5 @@ keyspace = "cloudinfo"
 table = "products"
 
 [store.gocache]
-expiration = 1
-cleanupInterval = 1
+expiration = 0
+cleanupInterval = 0
