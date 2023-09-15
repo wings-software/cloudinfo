@@ -52,7 +52,14 @@ spec:
           env:
           - name: USE_WORKLOAD_IDENTITY
             value: {{ .Values.workloadIdentity.enabled | quote }}
-
+          {{- if .Values.proxy.httpsProxyEnabled }}
+          - name: HTTPS_PROXY
+            value: {{ .Values.proxy.httpsProxyUrl }}
+          {{- end }}
+          {{- if .Values.proxy.noProxyEnabled }}
+          - name: NO_PROXY
+            value: {{ .Values.proxy.noProxyUrl }}
+          {{- end }}
           {{- if .Values.lifecycleHooks }}
           lifecycle: {{- include "harnesscommon.tplvalues.render" (dict "value" .Values.lifecycleHooks "context" $) | nindent 12 }}
           {{- end }}
