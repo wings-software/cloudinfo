@@ -83,6 +83,12 @@ CLOUD_INFO_CONFIG: ""
 workloadIdentity:
   enabled: false
 
+proxy:
+  httpsProxyEnabled: false
+  httpsProxyUrl: http://localhost
+  noProxyEnabled: false
+  noProxyUrl: http://localhost
+
 resources:
   limits:
     memory: "1536Mi"
