@@ -6,5 +6,5 @@ metadata:
 spec:
   minAvailable: 1
   selector:
-   matchLabels:
-    app: cloud-info
+    matchLabels:
+      {{- include "cloud-info.selectorLabels" . | nindent 6 }}
