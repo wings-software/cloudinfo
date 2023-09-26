@@ -3,6 +3,8 @@
 # Declare variables to be passed into your templates.
 global:
   loadbalancerURL: "https://test"
+  commonAnnotations: {}
+  commonLabels: {}
   ingress:
     enabled: false
     className: harness
@@ -50,17 +52,23 @@ serviceAccount:
   name: "harness-default"
 
 podAnnotations: {}
+podLabels: {}
 
 podSecurityContext: {}
 
 securityContext: {}
 
 service:
+  annotations: {}
   type: ClusterIP
   port: 8082
   targetPort: 8000
 
+virtualService:
+  annotations: {}
+
 ingress:
+  annotations: {}
   className: nginx
 
 autoscaling:
