@@ -148,5 +148,5 @@ keyspace = "cloudinfo"
 table = "products"
 
 [store.gocache]
-expiration = 0
-cleanupInterval = 0
+expiration = 86400000000000 # 1 day in nanoseconds
+cleanupInterval = 86400000000000 # 1 day in nanoseconds
