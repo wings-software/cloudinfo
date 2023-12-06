@@ -50,6 +50,6 @@ func NewCloudInfoStore(conf Config, log cloudinfo.Logger) cloudinfo.CloudInfoSto
 	}
 
 	// fallback to the "initial" implementation
-	log.Info("using in-mem cache as product store")
+	log.Info("using in-mem cache as product store", map[string]interface{}{"expiration": conf.GoCache.expiration, "cleanupInterval": conf.GoCache.cleanupInterval})
 	return NewCacheProductStore(conf.GoCache.expiration, conf.GoCache.cleanupInterval, log)
 }
