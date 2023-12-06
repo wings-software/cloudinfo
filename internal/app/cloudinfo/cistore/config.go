@@ -31,8 +31,8 @@ type Config struct {
 
 // GoCacheConfig configuration
 type GoCacheConfig struct {
-	expiration      time.Duration
-	cleanupInterval time.Duration
+	Expiration      time.Duration
+	CleanupInterval time.Duration
 }
 
 // NewCloudInfoStore builds a new cloudinfo store based on the passed in configuration
@@ -50,6 +50,6 @@ func NewCloudInfoStore(conf Config, log cloudinfo.Logger) cloudinfo.CloudInfoSto
 	}
 
 	// fallback to the "initial" implementation
-	log.Info("using in-mem cache as product store")
-	return NewCacheProductStore(conf.GoCache.expiration, conf.GoCache.cleanupInterval, log)
+	log.Info("using in-mem cache as product store", map[string]interface{}{"expiration": conf.GoCache.Expiration, "cleanupInterval": conf.GoCache.CleanupInterval})
+	return NewCacheProductStore(conf.GoCache.Expiration, conf.GoCache.CleanupInterval, log)
 }
