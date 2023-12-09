@@ -48,6 +48,10 @@ func (rps *redisProductStore) Ready() bool {
 	return true
 }
 
+func (rps *redisProductStore) GetSize() int {
+	return 0
+}
+
 func (rps *redisProductStore) DeleteRegions(provider, service string) {
 	rps.delete(rps.getKey(cloudinfo.RegionKeyTemplate, provider, service))
 }

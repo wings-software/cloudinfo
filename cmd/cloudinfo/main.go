@@ -34,6 +34,7 @@ import (
 	"emperror.dev/emperror"
 	"emperror.dev/errors"
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron"
 	vaultremote "github.com/sagikazarmark/viperx/remote"
 	_ "github.com/sagikazarmark/viperx/remote/bankvaults"
 	"github.com/spf13/pflag"
@@ -185,6 +186,12 @@ func main() {
 	if !cloudInfoStore.Ready() {
 		emperror.Panic(errors.New("configured product store not available"))
 	}
+	c := cron.New()
+	err = c.AddFunc("@every 10m", func() { logger.Info("Cache Size", map[string]interface{}{"size": cloudInfoStore.GetSize()}) })
+	if err != nil {
+		logger.Error("Could not initialize cron for logging cache size")
+	}
+	c.Start()
 
 	infoers, providers, err := loadInfoers(config, cloudInfoLogger)
 	emperror.Panic(err)

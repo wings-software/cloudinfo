@@ -38,6 +38,10 @@ func (cis *cacheProductStore) Ready() bool {
 	return true
 }
 
+func (cis *cacheProductStore) GetSize() int {
+	return cis.Cache.ItemCount()
+}
+
 func (cis *cacheProductStore) DeleteRegions(provider, service string) {
 	cis.Delete(cis.getKey(cloudinfo.RegionKeyTemplate, provider, service))
 }

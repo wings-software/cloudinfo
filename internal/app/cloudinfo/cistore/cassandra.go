@@ -55,6 +55,10 @@ func (cps *cassandraProductStore) Ready() bool {
 	return true
 }
 
+func (cps *cassandraProductStore) GetSize() int {
+	return 0
+}
+
 func (cps *cassandraProductStore) StoreRegions(provider, service string, val map[string]string) {
 	cps.set(cps.getKey(cloudinfo.RegionKeyTemplate, provider, service), val)
 }
