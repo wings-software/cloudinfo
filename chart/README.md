@@ -1,6 +1,6 @@
 # cloud-info
 
-![Version: 0.8.1](https://img.shields.io/badge/Version-0.8.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.10303](https://img.shields.io/badge/AppVersion-0.0.10303-informational?style=flat-square)
+![Version: 0.10.0](https://img.shields.io/badge/Version-0.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.10305](https://img.shields.io/badge/AppVersion-0.0.10305-informational?style=flat-square)
 
 A Helm chart for Kubernetes
 
@@ -24,6 +24,8 @@ A Helm chart for Kubernetes
 | extraVolumeMounts | list | `[]` |  |
 | extraVolumes | list | `[]` |  |
 | fullnameOverride | string | `""` |  |
+| global.commonAnnotations | object | `{}` |  |
+| global.commonLabels | object | `{}` |  |
 | global.imagePullSecrets | list | `[]` |  |
 | global.ingress.className | string | `"harness"` |  |
 | global.ingress.enabled | bool | `false` |  |
@@ -40,7 +42,8 @@ A Helm chart for Kubernetes
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.registry | string | `"docker.io"` |  |
 | image.repository | string | `"harness/ce-cloud-info-signed"` |  |
-| image.tag | string | `"10303"` |  |
+| image.tag | string | `"10305"` |  |
+| ingress.annotations | object | `{}` |  |
 | ingress.className | string | `"nginx"` |  |
 | java.memory | string | `"4096m"` |  |
 | java.memoryLimit | string | `"4096m"` |  |
@@ -50,6 +53,7 @@ A Helm chart for Kubernetes
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` |  |
 | podAnnotations | object | `{}` |  |
+| podLabels | object | `{}` |  |
 | podSecurityContext | object | `{}` |  |
 | proxy.httpsProxyEnabled | bool | `false` |  |
 | proxy.httpsProxyUrl | string | `"http://localhost"` |  |
@@ -60,6 +64,7 @@ A Helm chart for Kubernetes
 | resources.requests.cpu | string | `"1536m"` |  |
 | resources.requests.memory | string | `"1536Mi"` |  |
 | securityContext | object | `{}` |  |
+| service.annotations | object | `{}` |  |
 | service.port | int | `8082` |  |
 | service.targetPort | int | `8000` |  |
 | service.type | string | `"ClusterIP"` |  |
@@ -67,6 +72,7 @@ A Helm chart for Kubernetes
 | serviceAccount.create | bool | `false` |  |
 | serviceAccount.name | string | `"harness-default"` |  |
 | tolerations | list | `[]` |  |
+| virtualService.annotations | object | `{}` |  |
 | workloadIdentity.enabled | bool | `false` |  |
 
 ----------------------------------------------
