@@ -81,7 +81,7 @@ GCP_CREDENTIALS: '{{ .ctx.Values.secrets.default.GCP_CREDENTIALS  }}'
     {{- end }}    
     {{- if eq (include "harnesscommon.secrets.isDefaultAppSecret" (dict "ctx" $ "variableName" "CONFIG_FILE")) "true" }}
     {{- $hasAtleastOneSecret = true }}
-CONFIG_FILE: '{{ .ctx.Values.secrets.default.CONFIG_FILE | b64enc  }}'
+CONFIG_FILE: '{{ .ctx.Values.secrets.default.CONFIG_FILE  }}'
     {{- end }}
     {{- if not $hasAtleastOneSecret }}
 {}
