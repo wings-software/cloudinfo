@@ -124,3 +124,24 @@ lifecycleHooks: {}
 #   preStop:
 #     exec:
 #       command:
+secrets:
+  default:
+    GCP_CREDENTIALS: ""
+    CONFIG_FILE: ""
+  kubernetesSecrets:
+  - secretName: ""
+    keys:
+      GCP_CREDENTIALS: ""
+      CONFIG_FILE: ""
+  secretManagement: 
+    externalSecretsOperator:
+    - secretStore:
+        name: ""
+        kind: ""
+      remoteKeys:
+        GCP_CREDENTIALS:
+          name: ""
+          property: ""
+        CONFIG_FILE:
+          name: ""
+          property: "" 

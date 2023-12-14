@@ -72,10 +72,20 @@ Create the name of the service account to use
 {{- end }}
 
 {{- define "cloud-info.generateMountSecrets" }}
-    {{- if not .Values.workloadIdentity.enabled }}
-    gcp-creds: {{ include "harnesscommon.secrets.passwords.manage" (dict "secret" "cloud-info-secret-mount" "key" "gcp-creds" "providedValues" (list "CLOUD_INFO_GCP_CREDS") "length" 10 "context" $) }}
+    {{- $ := .ctx }}
+    {{- $hasAtleastOneSecret := false }}
+    {{- $localESOSecretCtxIdentifier := (include "harnesscommon.secrets.localESOSecretCtxIdentifier" (dict "ctx" $ )) }}
+    {{- if eq (include "harnesscommon.secrets.isDefaultAppSecret" (dict "ctx" $ "variableName" "GCP_CREDENTIALS")) "true" }}
+    {{- $hasAtleastOneSecret = true }}
+GCP_CREDENTIALS: '{{ .ctx.Values.secrets.default.GCP_CREDENTIALS  }}'
+    {{- end }}    
+    {{- if eq (include "harnesscommon.secrets.isDefaultAppSecret" (dict "ctx" $ "variableName" "CONFIG_FILE")) "true" }}
+    {{- $hasAtleastOneSecret = true }}
+CONFIG_FILE: '{{ .ctx.Values.secrets.default.CONFIG_FILE | b64enc  }}'
     {{- end }}
-    config-file: {{ include "harnesscommon.secrets.passwords.manage" (dict "secret" "cloud-info-secret-mount" "key" "config-file" "providedValues" (list "CLOUD_INFO_CONFIG") "length" 10 "context" $) }}
+    {{- if not $hasAtleastOneSecret }}
+{}
+    {{- end }}
 {{- end }}
 
 {{- define "cloud-info.pullSecrets" -}}
