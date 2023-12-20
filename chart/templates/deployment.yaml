@@ -92,16 +92,7 @@ spec:
       {{- if .Values.extraVolumes }}
       {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.extraVolumes "context" $ ) | nindent 6 }}
       {{- end }}
-      - name: secret-mount
-        secret:
-          secretName: cloud-info-secret-mount
-          items:
-          {{- if not .Values.workloadIdentity.enabled }}
-          - key: gcp-creds
-            path: gcp-creds.json
-          {{- end }}
-          - key: config-file
-            path: config.toml
+      {{- include "helper.manageMountedSecrets" (dict "ctx" $ "items" (list (dict "key" "GCP_CREDENTIALS" "path" "gcp-creds.json") (dict "key" "CONFIG_FILE" "path" "config.toml")) "defaultKubernetesSecretName" "cloud-info-secrets" "secretName" "secret-mount") | indent 6 }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
