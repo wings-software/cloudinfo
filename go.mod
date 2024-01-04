@@ -143,3 +143,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.0.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
+
+replace (
+	sourcegraph.com/sourcegraph/appdash => github.com/sourcegraph/appdash v0.0.0-20180110180208-2cc67fd64755
+	sourcegraph.com/sourcegraph/appdash-data => github.com/sourcegraph/appdash-data v0.0.0-20151005221446-73f23eafcf67
+)
