@@ -159,7 +159,9 @@ func (cis *cacheProductStore) DeleteVm(provider, service, region string) {
 }
 
 func (cis *cacheProductStore) StoreServices(provider string, services []types.Service) {
-	cis.Set(cis.getKey(cloudinfo.ServicesKeyTemplate, provider), services, cis.itemExpiry)
+	// Service info never expires hence -1 expiry.
+	// With expiry set cache doesn't get repopulated because service info is the basic info that is always required
+	cis.Set(cis.getKey(cloudinfo.ServicesKeyTemplate, provider), services, -1)
 }
 
 func (cis *cacheProductStore) GetServices(provider string) ([]types.Service, bool) {

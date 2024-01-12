@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"emperror.dev/emperror"
 	"emperror.dev/errors"
@@ -209,7 +210,11 @@ func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 	}
 
 	rateCardFilter := "OfferDurableId eq 'MS-AZR-0003p' and Currency eq 'USD' and Locale eq 'en-US' and RegionInfo eq 'US'"
+	// ResourceRateCardInfo is a huge object, it takes around 3-5 minutes to fetch this
+	startTime := time.Now()
+	a.log.Info("Fetching Azure ResourceRateCardInfo")
 	result, err := a.rateCardClient.Get(context.TODO(), rateCardFilter)
+	a.log.Info("Fetched Azure ResourceRateCardInfo", map[string]interface{}{"minutesTaken": time.Since(startTime).Minutes()})
 	if err != nil {
 		return nil, err
 	}
