@@ -92,7 +92,7 @@ spec:
       {{- if .Values.extraVolumes }}
       {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.extraVolumes "context" $ ) | nindent 6 }}
       {{- end }}
-      {{- include "helper.manageMountedSecrets" (dict "ctx" $ "items" (list (dict "key" "GCP_CREDENTIALS" "path" "gcp-creds.json") (dict "key" "CONFIG_FILE" "path" "config.toml")) "defaultKubernetesSecretName" "cloud-info-secrets" "secretName" "secret-mount") | indent 6 }}
+      {{- include "helper.manageMountedSecrets" (dict "ctx" $ "items" (list (dict "key" "GCP_CREDENTIALS" "path" "gcp-creds.json") (dict "key" "CONFIG_FILE" "path" "config.toml")) "defaultKubernetesSecretName" "cloud-info-secret-mount" "secretName" "secret-mount") | indent 6 }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
