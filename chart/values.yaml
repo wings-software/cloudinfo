@@ -20,57 +20,43 @@ global:
     virtualService:
       gateways:
       hosts:
-# image pull secrets to use for every image
+      # image pull secrets to use for every image
   imagePullSecrets: []
-
 replicaCount: 1
-
 maxSurge: 100%
-
 maxUnavailable: 0
-
 java:
   memory: "4096m"
   memoryLimit: "4096m"
-
 image:
   registry: docker.io
   repository: harness/ce-cloud-info-signed
   pullPolicy: IfNotPresent
-# Overrides the image tag whose default is the chart appVersion.
+  # Overrides the image tag whose default is the chart appVersion.
   tag: "10305"
   digest: ""
-# image pull secrets to use for ce-cloud-info image
+  # image pull secrets to use for ce-cloud-info image
   imagePullSecrets: []
-
 nameOverride: ""
 fullnameOverride: ""
-
 serviceAccount:
-  create: false
+  create: true
   annotations: {}
-  name: "harness-default"
-
+  name: ""
 podAnnotations: {}
 podLabels: {}
-
 podSecurityContext: {}
-
 securityContext: {}
-
 service:
   annotations: {}
   type: ClusterIP
   port: 8082
   targetPort: 8000
-
 virtualService:
   annotations: {}
-
 ingress:
   annotations: {}
   className: nginx
-
 autoscaling:
   enabled: false
   minReplicas: 1
@@ -79,43 +65,33 @@ autoscaling:
 # targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}
-
 CLOUD_INFO_GCP_CREDS: ""
-
 CLOUD_INFO_CONFIG: ""
-
 workloadIdentity:
   enabled: false
-
 proxy:
   httpsProxyEnabled: false
   httpsProxyUrl: http://localhost
   noProxyEnabled: false
   noProxyUrl: http://localhost
-
 resources:
   limits:
     memory: "1536Mi"
   requests:
     cpu: "1536m"
     memory: "1536Mi"
-
 # extraVolumes:
 #   - name: volume-test
 #     configMap:
 #       name: test-config
 #       # readOnly: true
 extraVolumes: []
-
 # extraVolumeMounts:
 #   - name: volume-test
 #     mountPath: /opt/harness/config
 extraVolumeMounts: []
-
 lifecycleHooks: {}
 # lifecycleHooks:
 #   postStart:
@@ -129,19 +105,21 @@ secrets:
     GCP_CREDENTIALS: ""
     CONFIG_FILE: ""
   kubernetesSecrets:
-  - secretName: ""
-    keys:
-      GCP_CREDENTIALS: ""
-      CONFIG_FILE: ""
-  secretManagement: 
+    - secretName: ""
+      keys:
+        GCP_CREDENTIALS: ""
+        CONFIG_FILE: ""
+  secretManagement:
     externalSecretsOperator:
-    - secretStore:
-        name: ""
-        kind: ""
-      remoteKeys:
-        GCP_CREDENTIALS:
+      - secretStore:
           name: ""
-          property: ""
-        CONFIG_FILE:
-          name: ""
-          property: "" 
+          kind: ""
+        remoteKeys:
+          GCP_CREDENTIALS:
+            name: ""
+            property: ""
+          CONFIG_FILE:
+            name: ""
+            property: ""
+rbac:
+  rules: []
