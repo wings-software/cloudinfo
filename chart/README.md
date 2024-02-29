@@ -63,6 +63,17 @@ A Helm chart for Kubernetes
 | resources.limits.memory | string | `"1536Mi"` |  |
 | resources.requests.cpu | string | `"1536m"` |  |
 | resources.requests.memory | string | `"1536Mi"` |  |
+| secrets.default.CONFIG_FILE | string | `""` |  |
+| secrets.default.GCP_CREDENTIALS | string | `""` |  |
+| secrets.kubernetesSecrets[0].keys.CONFIG_FILE | string | `""` |  |
+| secrets.kubernetesSecrets[0].keys.GCP_CREDENTIALS | string | `""` |  |
+| secrets.kubernetesSecrets[0].secretName | string | `""` |  |
+| secrets.secretManagement.externalSecretsOperator[0].remoteKeys.CONFIG_FILE.name | string | `""` |  |
+| secrets.secretManagement.externalSecretsOperator[0].remoteKeys.CONFIG_FILE.property | string | `""` |  |
+| secrets.secretManagement.externalSecretsOperator[0].remoteKeys.GCP_CREDENTIALS.name | string | `""` |  |
+| secrets.secretManagement.externalSecretsOperator[0].remoteKeys.GCP_CREDENTIALS.property | string | `""` |  |
+| secrets.secretManagement.externalSecretsOperator[0].secretStore.kind | string | `""` |  |
+| secrets.secretManagement.externalSecretsOperator[0].secretStore.name | string | `""` |  |
 | securityContext | object | `{}` |  |
 | service.annotations | object | `{}` |  |
 | service.port | int | `8082` |  |
