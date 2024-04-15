@@ -77,11 +77,11 @@ Create the name of the service account to use
     {{- $localESOSecretCtxIdentifier := (include "harnesscommon.secrets.localESOSecretCtxIdentifier" (dict "ctx" $ )) }}
     {{- if eq (include "harnesscommon.secrets.isDefaultAppSecret" (dict "ctx" $ "variableName" "GCP_CREDENTIALS")) "true" }}
     {{- $hasAtleastOneSecret = true }}
-GCP_CREDENTIALS: '{{ .ctx.Values.secrets.default.GCP_CREDENTIALS  }}'
-    {{- end }}    
+GCP_CREDENTIALS: {{ include "harnesscommon.secrets.passwords.manage" (dict "secret" "cloud-info-secret-mount" "key" "GCP_CREDENTIALS" "providedValues" (list "CLOUD_INFO_GCP_CREDS" "secrets.default.GCP_CREDENTIALS") "length" 10 "context" $) }}
+    {{- end }}
     {{- if eq (include "harnesscommon.secrets.isDefaultAppSecret" (dict "ctx" $ "variableName" "CONFIG_FILE")) "true" }}
     {{- $hasAtleastOneSecret = true }}
-CONFIG_FILE: '{{ .ctx.Values.secrets.default.CONFIG_FILE  }}'
+CONFIG_FILE: {{ include "harnesscommon.secrets.passwords.manage" (dict "secret" "cloud-info-secret-mount" "key" "CONFIG_FILE" "providedValues" (list "CLOUD_INFO_CONFIG" "secrets.default.CONFIG_FILE") "length" 10 "context" $) }}
     {{- end }}
     {{- if not $hasAtleastOneSecret }}
 {}
