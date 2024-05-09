@@ -127,6 +127,14 @@ lifecycleHooks: {}
 #     exec:
 #       command:
 secrets:
+  fileSecret:
+    - volumeMountPath: "/config"
+      keys:
+      - key: GCP_CREDENTIALS
+        path: "gcp-creds.json"
+      - key: CONFIG_FILE
+        path: "config.toml"
+  defaultSecretName: "cloud-info-secret-mount"
   default:
     GCP_CREDENTIALS: ""
     CONFIG_FILE: ""
