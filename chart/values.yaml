@@ -90,9 +90,6 @@ CLOUD_INFO_GCP_CREDS: ""
 
 CLOUD_INFO_CONFIG: ""
 
-workloadIdentity:
-  enabled: false
-
 proxy:
   httpsProxyEnabled: false
   httpsProxyUrl: http://localhost
@@ -155,3 +152,9 @@ secrets:
         CONFIG_FILE:
           name: ""
           property: "" 
+
+config:
+  USE_WORKLOAD_IDENTITY: "false"
+
+rbac:
+  rules: []
