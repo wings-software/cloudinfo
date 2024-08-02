@@ -1,6 +1,6 @@
 dependencies:
 - name: harness-common
   repository: https://harness.github.io/helm-common
-  version: 1.3.36
-digest: sha256:efea3255a3c8c6a7cf766db2e4a41be9889f96fbc68fbea8c8a4bfef0484abb5
-generated: "2024-05-10T01:18:12.314039+05:30"
+  version: 1.3.52
+digest: sha256:9eea0c4ff841064b738281cf2bfd142034eb623998933c50330bd6a548c8fd53
+generated: "2024-08-01T20:38:41.490407-04:00"

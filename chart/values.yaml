@@ -7,6 +7,9 @@ global:
   commonLabels: {}
   ingress:
     enabled: false
+    disableHostInIngress: false
+    pathPrefix: ""
+    pathType: ""
     className: harness
     hosts:
       - my-host.example.org
@@ -68,10 +71,22 @@ service:
 
 virtualService:
   annotations: {}
+  objects:
+    - pathMatchType: prefix
+      pathRewrite: "/"
+      paths:
+        - path: '{{ .Values.global.istio.virtualService.pathPrefix }}/ccm/public-pricing/'
+        - path: '{{ .Values.global.istio.virtualService.pathPrefix }}/ccm/public-pricing'
 
 ingress:
   annotations: {}
   className: nginx
+  objects:
+    - annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /$2
+        nginx.ingress.kubernetes.io/use-regex: "true"
+      paths:
+      - path: '{{ .Values.global.ingress.pathPrefix }}/ccm/public-pricing(/|$)(.*)'
 
 autoscaling:
   enabled: false
@@ -140,7 +155,7 @@ secrets:
     keys:
       GCP_CREDENTIALS: ""
       CONFIG_FILE: ""
-  secretManagement: 
+  secretManagement:
     externalSecretsOperator:
     - secretStore:
         name: ""
@@ -151,7 +166,7 @@ secrets:
           property: ""
         CONFIG_FILE:
           name: ""
-          property: "" 
+          property: ""
 
 config:
   USE_WORKLOAD_IDENTITY: "false"
