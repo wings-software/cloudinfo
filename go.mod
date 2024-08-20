@@ -23,7 +23,7 @@ require (
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-kit/kit v0.10.0
 	github.com/go-playground/validator/v10 v10.6.1
-	github.com/gocql/gocql v0.0.0-20210515062232-b7ef815b4556
+	github.com/gocql/gocql v1.6.0
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/mitchellh/mapstructure v1.4.1
@@ -74,7 +74,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/golang/snappy v0.0.1 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
