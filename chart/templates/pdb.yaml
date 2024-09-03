@@ -1,18 +1,1 @@
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: cloud-info
-  namespace: {{ .Release.Namespace }}
-  {{- if .Values.global.commonLabels }}
-  labels:
-    {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.global.commonLabels "context" $ ) | nindent 4 }}
-  {{- end }}
-  {{- if .Values.global.commonAnnotations }}
-  annotations:
-    {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.global.commonAnnotations "context" $ ) | nindent 4 }}
-  {{- end }}
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      {{- include "cloud-info.selectorLabels" . | nindent 6 }}
+{{- include "harnesscommon.pdb.renderPodDistributionBudget" (dict "ctx" $) }}
