@@ -2,6 +2,8 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 global:
+  pdb:
+    create: false
   loadbalancerURL: "https://test"
   commonAnnotations: {}
   commonLabels: {}
@@ -173,3 +175,6 @@ config:
 
 rbac:
   rules: []
+
+pdb:
+  create: false
