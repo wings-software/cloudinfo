@@ -3,14 +3,14 @@ module github.com/banzaicloud/cloudinfo
 go 1.20
 
 require (
-	cloud.google.com/go/profiler v0.3.1
+	cloud.google.com/go v0.82.0
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2
 	emperror.dev/emperror v0.33.0
 	emperror.dev/errors v0.8.0
 	emperror.dev/handler/logur v0.5.0
 	github.com/99designs/gqlgen v0.13.0
-	github.com/Azure/azure-sdk-for-go v55.5.0+incompatible
+	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.19
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.7
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1190
@@ -39,16 +39,13 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/vektah/gqlparser/v2 v2.2.0
 	go.opencensus.io v0.23.0
-	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
-	google.golang.org/api v0.102.0
+	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
+	google.golang.org/api v0.47.0
 	logur.dev/adapter/logrus v0.5.0
 	logur.dev/logur v0.17.0
 )
 
 require (
-	cloud.google.com/go v0.105.0 // indirect
-	cloud.google.com/go/compute v1.12.1 // indirect
-	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.13 // indirect
 	github.com/Azure/go-autorest/autorest/azure/cli v0.4.2 // indirect
@@ -79,9 +76,7 @@ require (
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/google/pprof v0.0.0-20221103000818-d260c55eee4c // indirect
-	github.com/google/uuid v1.3.0 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
-	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
