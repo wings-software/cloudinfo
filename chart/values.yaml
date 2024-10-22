@@ -2,6 +2,8 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 global:
+  autoscaling:
+    enabled: false
   pdb:
     create: false
   loadbalancerURL: "https://test"
@@ -92,10 +94,6 @@ ingress:
 
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 2
-  targetCPUUtilizationPercentage: 80
-# targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 
