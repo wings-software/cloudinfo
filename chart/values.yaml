@@ -94,6 +94,8 @@ ingress:
 
 autoscaling:
   enabled: false
+  targetCPU: 80
+  targetMemory: ""
 
 nodeSelector: {}
 
