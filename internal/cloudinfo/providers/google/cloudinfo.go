@@ -26,9 +26,6 @@ import (
 	"emperror.dev/emperror"
 	"emperror.dev/errors"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/cloudbilling/v1"
-	"google.golang.org/api/compute/v1"
-	"google.golang.org/api/container/v1"
 	"google.golang.org/api/option"
 
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo"
@@ -437,7 +434,7 @@ func (g *GceInfoer) GetProducts(vms []types.VMInfo, service, regionId string) ([
 // GetRegions returns a map with available regions transforms the api representation into a "plain" map
 func (g *GceInfoer) GetRegions(service string) (map[string]string, error) {
 	logger := log.WithFields(g.log, map[string]interface{}{"service": service})
-	logger.Debug("getting regions")
+	logger.Info("getting regions")
 
 	regionList, err := g.computeSvc.Regions.List(g.projectId).Do()
 	if err != nil {
@@ -451,7 +448,7 @@ func (g *GceInfoer) GetRegions(service string) (map[string]string, error) {
 		}
 	}
 
-	logger.Debug("found regions", map[string]interface{}{"numberOfRegions": len(regionIdMap)})
+	logger.Info("found regions", map[string]interface{}{"numberOfRegions": len(regionIdMap)})
 	return regionIdMap, nil
 }
 
