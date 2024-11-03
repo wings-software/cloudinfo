@@ -356,37 +356,78 @@ func (r *RouteHandler) getRegion() gin.HandlerFunc {
 //       200: ProductDetailsResponse
 func (r *RouteHandler) getProducts() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		logger := log.WithFieldsForHandlers(c, r.log, map[string]interface{}{"endpoint": "/getProducts"})
+
+		logger.Info("start handling request to get product details")
+
 		pathParams := GetRegionPathParams{}
 		if err := mapstructure.Decode(getPathParamMap(c), &pathParams); err != nil {
+			logger.Info("failed to decode path parameters", map[string]interface{}{
+				"error": err,
+			})
 			r.errorResponder.Respond(c, errors.WithDetails(err, "validation"))
 			return
 		}
 
+		logger.Info("decoded path parameters", map[string]interface{}{
+			"provider": pathParams.Provider,
+			"service":  pathParams.Service,
+			"region":   pathParams.Region,
+		})
+
 		if ve := ValidatePathData(pathParams); ve != nil {
+			logger.Info("path parameter validation failed", map[string]interface{}{
+				"validation_error": ve,
+			})
 			r.errorResponder.Respond(c, errors.WithDetails(ve, "validation"))
 			return
 		}
 
-		logger := log.WithFieldsForHandlers(c, r.log,
-			map[string]interface{}{"provider": pathParams.Provider, "service": pathParams.Service, "region": pathParams.Region})
-		logger.Info("getting product details")
+		logger.Info("path parameters validated successfully")
 
+		logger.Info("retrieving product scraping status for provider", map[string]interface{}{
+			"provider": pathParams.Provider,
+		})
 		scrapingTime, err := r.prod.GetStatus(pathParams.Provider)
 		if err != nil {
+			logger.Info("failed to retrieve scraping status", map[string]interface{}{
+				"provider": pathParams.Provider,
+				"error":    err,
+			})
 			r.errorResponder.Respond(c, errors.WrapIfWithDetails(err, "failed to retrieve status",
 				"provider", pathParams.Provider))
 			return
 		}
+		logger.Info("retrieved scraping status successfully", map[string]interface{}{
+			"scraping_time": scrapingTime,
+		})
+
+		logger.Info("fetching product details", map[string]interface{}{
+			"provider": pathParams.Provider,
+			"service":  pathParams.Service,
+			"region":   pathParams.Region,
+		})
 		details, err := r.prod.GetProductDetails(pathParams.Provider, pathParams.Service, pathParams.Region)
 		if err != nil {
-			r.errorResponder.Respond(c, errors.WrapIfWithDetails(err,
-				"failed to retrieve product details",
+			logger.Info("failed to retrieve product details", map[string]interface{}{
+				"provider": pathParams.Provider,
+				"service":  pathParams.Service,
+				"region":   pathParams.Region,
+				"error":    err,
+			})
+			r.errorResponder.Respond(c, errors.WrapIfWithDetails(err, "failed to retrieve product details",
 				"provider", pathParams.Provider, "service", pathParams.Service, "region", pathParams.Region))
 			return
 		}
 
-		logger.Debug("successfully retrieved product details")
+		logger.Info("product details retrieved successfully", map[string]interface{}{
+			"provider": pathParams.Provider,
+			"service":  pathParams.Service,
+			"region":   pathParams.Region,
+		})
+
 		c.JSON(http.StatusOK, ProductDetailsResponse{details, scrapingTime})
+		logger.Info("successfully responded with product details")
 	}
 }
 

@@ -47,21 +47,46 @@ func (sm *scrapingManager) initialize(ctx context.Context) {
 	ctx, _ = sm.tracer.StartWithTags(ctx, "initialize", map[string]interface{}{"provider": sm.provider})
 	defer sm.tracer.EndSpan(ctx)
 
-	sm.log.Info("initializing cloud product information")
+	sm.log.Info("initializing cloud product information", map[string]interface{}{
+		"provider": sm.provider,
+	})
+
 	prices, err := sm.infoer.Initialize()
 	if err != nil {
-		sm.log.Error("failed to initialize cloud product information")
+		sm.log.Error("failed to initialize cloud product information", map[string]interface{}{
+			"provider": sm.provider,
+			"error":    err,
+		})
 		sm.errorHandler.Handle(err)
 		return
 	}
 
+	sm.log.Info("cloud product information initialized successfully", map[string]interface{}{
+		"provider":      sm.provider,
+		"regions_count": len(prices),
+	})
+
 	for region, ap := range prices {
+		sm.log.Info("processing region", map[string]interface{}{
+			"region":          region,
+			"instances_count": len(ap),
+		})
+
 		for instType, p := range ap {
+			sm.log.Info("storing price", map[string]interface{}{
+				"provider":        sm.provider,
+				"region":          region,
+				"instance_type":   instType,
+				"on_demand_price": p.OnDemandPrice,
+			})
 			sm.store.StorePrice(sm.provider, region, instType, p)
 			metrics.OnDemandPriceGauge.WithLabelValues(sm.provider, region, instType).Set(p.OnDemandPrice)
 		}
 	}
-	sm.log.Info("finished initializing cloud product information")
+
+	sm.log.Info("finished initializing cloud product information", map[string]interface{}{
+		"provider": sm.provider,
+	})
 }
 
 func (sm *scrapingManager) scrapeServiceRegionProducts(ctx context.Context, service string, regionId string) error {
