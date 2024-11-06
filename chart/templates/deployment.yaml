@@ -58,8 +58,8 @@ spec:
             httpGet:
               path: /status
               port: 8000
-            initialDelaySeconds: 5
-            periodSeconds: 1
+            initialDelaySeconds: 25
+            periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /status
