@@ -92,8 +92,11 @@ func Middleware(notlogged ...string) gin.HandlerFunc {
 
 		c.Next()
 
-		// Log only when path is not being skipped
 		if _, ok := skip[path]; !ok {
+			if path == "/status" && c.Writer.Status() == 200 {
+				return
+			}
+
 			end := time.Now()
 			latency := end.Sub(start)
 
@@ -118,7 +121,7 @@ func Middleware(notlogged ...string) gin.HandlerFunc {
 
 			entry := logrus.WithFields(fields)
 
-			if len(c.Errors) > 0 {
+			if c.Writer.Status() >= 400 && len(c.Errors) > 0 {
 				// Append error field if this is an erroneous request.
 				entry.Error(c.Errors.String())
 			} else {
