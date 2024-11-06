@@ -15,7 +15,6 @@
 package log
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -75,8 +74,9 @@ func (m *middleware) Handle(ctx *gin.Context) {
 func Middleware(notlogged ...string) gin.HandlerFunc {
 	var skip map[string]struct{}
 
-	if len(notlogged) > 0 {
-		skip = make(map[string]struct{}, len(notlogged))
+	if length := len(notlogged); length > 0 {
+		skip = make(map[string]struct{}, length)
+
 		for _, path := range notlogged {
 			skip[path] = struct{}{}
 		}
@@ -88,16 +88,15 @@ func Middleware(notlogged ...string) gin.HandlerFunc {
 
 		// prevent middlewares from faking the request path
 		path := c.Request.URL.Path
-		method := c.Request.Method
 		raw := c.Request.URL.RawQuery
 
 		c.Next()
 
-		if path == "/status" && method == http.MethodGet && c.Writer.Status() == http.StatusOK {
-			return
-		}
-
 		if _, ok := skip[path]; !ok {
+			if path == "/status" && c.Writer.Status() == 200 {
+				return
+			}
+
 			end := time.Now()
 			latency := end.Sub(start)
 
@@ -107,7 +106,7 @@ func Middleware(notlogged ...string) gin.HandlerFunc {
 
 			fields := logrus.Fields{
 				"status":  c.Writer.Status(),
-				"method":  method,
+				"method":  c.Request.Method,
 				"path":    path,
 				"latency": latency,
 			}
