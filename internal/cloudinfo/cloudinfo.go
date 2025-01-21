@@ -31,6 +31,7 @@ type cloudInfo struct {
 	cloudInfoStore CloudInfoStore
 }
 
+
 // NewCloudInfo creates a new cloudInfo instance
 func NewCloudInfo(providers []string, ciStore CloudInfoStore, logger Logger) (*cloudInfo, error) {
 	if providers == nil || ciStore == nil {
