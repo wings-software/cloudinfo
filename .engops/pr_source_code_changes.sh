@@ -27,19 +27,20 @@
 # $2 - the output file which should ultimately contain file names from the diff that affect a service
 #
 # See BT-10437 for more information
+# See BT-11220 for more information
 # See https://harness.atlassian.net/wiki/spaces/ENGOPS/pages/22218015100/Multi-service+repositories+-+Mapping+file+changes+to+affected+services+for+CX+Tagging+Communication
 #
 # Owner: Engops
 # Author: Marc Batchelor
 ###################################################
-prDiff=$1
+uniqueFileNamesFile=$1
 sourceDiffNames=$2
-if [ -z "$prDiff" ]; then
+if [ -z "$uniqueFileNamesFile" ]; then
   echo "Missing input PR Difference file."
   exit 1
 fi
-if [ ! -f "$prDiff" ]; then
-  echo "Input file $prDiff does not exist and is required."
+if [ ! -f "$uniqueFileNamesFile" ]; then
+  echo "Input file $uniqueFileNamesFile does not exist and is required."
   exit 2
 fi
 if [ -z "$sourceDiffNames" ]; then
@@ -51,10 +52,17 @@ if [ ! -f "$sourceDiffNames" ]; then
   exit 4
 fi
 
+##### Detect git diff file, or processed filenames only
+isDiffFile=$(grep -E "^diff --git a\/" "$uniqueFileNamesFile" | wc -l)
+if [ $isDiffFile -gt 0 ]; then
+  echo "Received a diff file... fix it to be a filenames only file"
+  fileNamesOnlyVar=$(cat "$uniqueFileNamesFile"|grep -E "^diff --git" | sed 's/diff --git a\///' | sed 's/ b\/.*$//' | sort -u)
+  echo -e "$fileNamesOnlyVar">"$uniqueFileNamesFile"
+fi
 
 # Java files (and other files) which end up in jars - these are kept in .../src/main/x/x/x/* 
-cat "$diffResp" | grep -E "^diff .*java$" | grep -v "/test/" | sed 's/diff --git a\///' | sed 's/ b\/.*$//' > $sourceDiffNames
+cat "$uniqueFileNamesFile" | grep -E ".*java$" | grep -v "/test/" > $sourceDiffNames
 # go files (without tests)
-cat "$diffResp" | grep -E "^diff .*.go$|^diff .*.mod$" | grep -v "test_"| sed 's/diff --git a\///' | sed 's/ b\/.*$//' >> $sourceDiffNames
+cat "$uniqueFileNamesFile" | grep -E ".*.go$|.*.mod$" | grep -v "test_" >> $sourceDiffNames
 # Other potential source files
-cat "$diffResp" | grep -E "^diff .*.(css|gradle|graphql|gv|html|iml|js|json|mustache|pl|properties|proto|ps1|py|pyc|qbg|repo|rs|sh|sha256|sql|sum|tf|tgz|tpl|xml|yaml|yml)$" | sed 's/diff --git a\///' | sed 's/ b\/.*$//' >> $sourceDiffNames
+cat "$uniqueFileNamesFile" | grep -E ".*.(css|gradle|graphql|gv|html|iml|js|json|mustache|pl|properties|proto|ps1|py|pyc|qbg|repo|rs|sh|sha256|sql|sum|tf|tgz|tpl|xml|yaml|yml)$" >> $sourceDiffNames
