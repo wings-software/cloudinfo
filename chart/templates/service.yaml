@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: cloud-info
+  name: {{ include "cloud-info.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "cloud-info.labels" . | nindent 4 }}
@@ -20,7 +20,8 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
+    - name: http
+      port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
   selector:

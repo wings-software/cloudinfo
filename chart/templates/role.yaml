@@ -4,7 +4,14 @@ kind: Role
 metadata:
   name: {{ include "cloud-info.name" . }}-additional-role
   namespace: {{ .Release.Namespace }}
-  annotations: {}
+  labels:
+    {{- include "cloud-info.labels" . | nindent 4 }}
+    {{- if .Values.global.commonLabels }}
+    {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.global.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if .Values.global.commonAnnotations }}
+  annotations: {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.global.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
 rules:
   - apiGroups:
       - ""
@@ -19,6 +26,6 @@ rules:
       - list
       - watch
   {{- if .Values.rbac.rules }}
-  {{- include "common.tplvalues.render" ( dict "value" .Values.rbac.rules "context" $ ) | nindent 2 }}
+  {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.rbac.rules "context" $ ) | nindent 2 }}
   {{- end -}}
 {{- end }}

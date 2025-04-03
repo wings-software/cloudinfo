@@ -1,6 +1,21 @@
 # Default values for cloud-info
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+
+probes:
+  readinessProbe:
+    httpGet:
+      path: /status
+      port: 8000
+    initialDelaySeconds: 25
+    periodSeconds: 10
+  livenessProbe:
+    httpGet:
+      path: /status
+      port: 8000
+    initialDelaySeconds: 60
+    periodSeconds: 10
+
 global:
   autoscaling:
     enabled: false
@@ -34,9 +49,15 @@ global:
 
 replicaCount: 1
 
-maxSurge: 100%
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 100%
+    maxUnavailable: 0
 
-maxUnavailable: 0
+progressDeadlineSeconds: 600
+terminationGracePeriodSeconds: 30
+
 
 java:
   memory: "4096m"

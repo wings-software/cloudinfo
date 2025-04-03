@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cloud-info
+  name: {{ include "cloud-info.name" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "cloud-info.labels" . | nindent 4 }}
@@ -12,14 +12,15 @@ metadata:
   annotations: {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.global.commonAnnotations "context" $ ) | nindent 4 }}
   {{- end }}
 spec:
+  {{- if .Values.progressDeadlineSeconds }}
+  progressDeadlineSeconds: {{ .Values.progressDeadlineSeconds }}
+  {{- end }}
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: {{.Values.maxSurge}}
-      maxUnavailable: {{.Values.maxUnavailable}}
+  {{- if .Values.updateStrategy }}
+  strategy: {{- toYaml .Values.updateStrategy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "cloud-info.selectorLabels" . | nindent 6 }}
@@ -35,7 +36,7 @@ spec:
         {{- end }}
       {{- end }}
       labels:
-        app: ce-cloud-info
+        app: {{ include "cloud-info.name" . }}
         {{- include "cloud-info.selectorLabels" . | nindent 8 }}
         {{- if .Values.global.commonLabels }}
         {{- include "harnesscommon.tplvalues.render" ( dict "value" .Values.global.commonLabels "context" $ ) | nindent 8 }}
@@ -49,26 +50,15 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: cloud-info
+        - name: {{ include "cloud-info.name" . }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: {{ include "common.images.image" (dict "imageRoot" .Values.image "global" .Values.global) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          readinessProbe:
-            httpGet:
-              path: /status
-              port: 8000
-            initialDelaySeconds: 25
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /status
-              port: 8000
-            initialDelaySeconds: 60
-            periodSeconds: 10
+          {{- toYaml .Values.probes | nindent 10 }}
           envFrom:
           - configMapRef:
-              name: cloud-info
+              name: {{ include "cloud-info.name" . }}
           env:
           {{- include "harnesscommon.renderSecretsAsEnvironmentVariables" (dict "ctx" $) | indent 10 }}
           {{- if .Values.proxy.httpsProxyEnabled }}
@@ -102,7 +92,7 @@ spec:
               - key: app
                 operator: In
                 values:
-                - cloud-info
+                - {{ include "cloud-info.name" . }}
             topologyKey: "kubernetes.io/hostname"
       {{- with .Values.nodeSelector }}
       nodeSelector:
