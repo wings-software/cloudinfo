@@ -45,12 +45,15 @@ var regionNames = map[string]string{
 	"asia-northeast1":         "Asia Pacific (Tokyo)",
 	"asia-south1":             "Asia Pacific (Mumbai)",
 	"asia-southeast1":         "Asia Pacific (Singapore)",
+	"asia-southeast2":         "Asia Pacific (Jakarta)",
 	"australia-southeast1":    "Asia Pacific (Sydney)",
 	"europe-north1":           "EU (Finland)",
 	"europe-west1":            "EU (Belgium)",
 	"europe-west2":            "EU (London)",
 	"europe-west3":            "EU (Frankfurt)",
 	"europe-west4":            "EU (Netherlands)",
+	"europe-southwest1":       "EU (Madrid)",
+	"europe-central2":         "EU (Warsaw)",
 	"northamerica-northeast1": "Canada (Montréal)",
 	"southamerica-east1":      "South America (São Paulo)",
 	"us-central1":             "US Central (Iowa)",
@@ -58,6 +61,8 @@ var regionNames = map[string]string{
 	"us-east4":                "US East (Northern Virginia)",
 	"us-west1":                "US West (Oregon)",
 	"us-west2":                "US West (Los Angeles)",
+	"us-west3":                "US West (Salt Lake City)",
+	"us-west4":                "US West (Las Vegas)",
 }
 
 // GceInfoer encapsulates the data and operations needed to access external resources
