@@ -189,7 +189,7 @@ type configuration struct {
 func (c configuration) Validate() error {
 	// TODO: write config validation
 
-	if !c.Scrape.Enabled && !(c.Store.Redis.Enabled || c.Store.Cassandra.Enabled) {
+	if !c.Scrape.Enabled && !(c.Store.Redis.Enabled || c.Store.Cassandra.Enabled || c.Store.ModernRedis.Enabled) {
 		return errors.New("storage is required when scraping is disabled")
 	}
 
@@ -369,4 +369,14 @@ func configure(v *viper.Viper, p *pflag.FlagSet) {
 	// InMemory product store
 	v.SetDefault("store.gocache.expiration", 0)
 	v.SetDefault("store.gocache.cleanupInterval", 0)
+
+	// Modern Redis product store
+	v.SetDefault("store.modernredis.address", "localhost")
+	v.SetDefault("store.modernredis.password", "")
+	v.SetDefault("store.modernredis.db", 0)
+	v.SetDefault("store.modernredis.enabled", false)
+	v.SetDefault("store.modernredis.sentinelEnabled", false)
+	v.SetDefault("store.modernredis.masterName", "master")
+	v.SetDefault("store.modernredis.masterPassword", "")
+	v.SetDefault("store.modernredis.sentinelAddress", []string{"127.0.0.1:26739"})
 }

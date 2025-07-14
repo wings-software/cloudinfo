@@ -19,14 +19,16 @@ import (
 
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo"
 	"github.com/banzaicloud/cloudinfo/internal/platform/cassandra"
+	"github.com/banzaicloud/cloudinfo/internal/platform/modernredis"
 	"github.com/banzaicloud/cloudinfo/internal/platform/redis"
 )
 
 // CloudInfoStore configuration
 type Config struct {
-	Redis     redis.Config
-	GoCache   GoCacheConfig
-	Cassandra cassandra.Config
+	Redis       redis.Config
+	GoCache     GoCacheConfig
+	Cassandra   cassandra.Config
+	ModernRedis modernredis.Config
 }
 
 // GoCacheConfig configuration
@@ -38,6 +40,11 @@ type GoCacheConfig struct {
 // NewCloudInfoStore builds a new cloudinfo store based on the passed in configuration
 // This method is in charge to create the appropriate store instance eventually to implement a fallback mechanism to the default store
 func NewCloudInfoStore(conf Config, log cloudinfo.Logger) cloudinfo.CloudInfoStore {
+	if conf.ModernRedis.Enabled {
+		log.Info("using modern Redis as product store")
+		return NewRedisCache(conf.ModernRedis, log)
+	}
+
 	// use redis if enabled
 	if conf.Redis.Enabled {
 		log.Info("using Redis as product store")

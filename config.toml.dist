@@ -150,3 +150,13 @@ table = "products"
 [store.gocache]
 expiration = 0
 cleanupInterval = 0
+
+[store.modernredis]
+address = "localhost"
+password = ""
+db = 0
+enabled = false
+sentinelEnabled = false
+masterName = "master"
+masterPassword = ""
+sentinelAddress = ["127.0.0.1:26739"]
