@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 
 	"emperror.dev/emperror"
@@ -27,6 +28,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo"
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo/metrics"
@@ -121,6 +123,14 @@ func (r *RouteHandler) ConfigureRoutes(router *gin.Engine, basePath string) {
 	}
 
 	base.POST("/graphql", r.query())
+
+	heapRoutePath := fmt.Sprintf("/heap/%s", uuid.New().String())
+	r.log.Info("Heap pprof path", map[string]interface{}{"path": heapRoutePath})
+	router.GET(heapRoutePath, gin.WrapF(pprof.Handler("heap").ServeHTTP))
+
+	goRoutineRoutePath := fmt.Sprintf("/goroutine/%s", uuid.New().String())
+	r.log.Info("Goroutine pprof path", map[string]interface{}{"path": goRoutineRoutePath})
+	router.GET(goRoutineRoutePath, gin.WrapF(pprof.Handler("goroutine").ServeHTTP))
 }
 
 func (r *RouteHandler) signalStatus(c *gin.Context) {
