@@ -216,7 +216,7 @@ func (g *GceInfoer) Initialize() (map[string]map[string]types.Price, error) {
 		return nil, err
 	}
 
-	pricePerRegion, err := g.getPrice()
+	pricePerRegion, regionStandardMachineMap, err := g.getPrice()
 	if err != nil {
 		return nil, err
 	}
@@ -235,8 +235,12 @@ func (g *GceInfoer) Initialize() (map[string]map[string]types.Price, error) {
 						}
 						prices := allPrices[region][mt.Name]
 
+						standardMachineType := strings.Split(mt.Name, "-")[0]
+
 						if mt.Name == "f1-micro" || mt.Name == "g1-small" {
 							prices.OnDemandPrice = price[mt.Name]["OnDemand"]
+						} else if regionStandardMachineMap[region][standardMachineType] {
+							prices.OnDemandPrice = price[standardMachineType+"-"+types.CPU]["OnDemand"]*float64(mt.GuestCpus) + price[standardMachineType+"-"+types.Memory]["OnDemand"]*float64(mt.MemoryMb)/1024
 						} else {
 							prices.OnDemandPrice = price[types.CPU]["OnDemand"]*float64(mt.GuestCpus) + price[types.Memory]["OnDemand"]*float64(mt.MemoryMb)/1024
 						}
@@ -244,7 +248,8 @@ func (g *GceInfoer) Initialize() (map[string]map[string]types.Price, error) {
 						for _, z := range zonesInRegions[region] {
 							if mt.Name == "f1-micro" || mt.Name == "g1-small" {
 								spotPrice[z] = price[mt.Name]["Preemptible"]
-								metrics.ReportGoogleSpotPrice(region, z, mt.Name, spotPrice[z])
+							} else if regionStandardMachineMap[region][standardMachineType] {
+								spotPrice[z] = price[standardMachineType+"-"+types.CPU]["Preemptible"]*float64(mt.GuestCpus) + price[standardMachineType+"-"+types.Memory]["Preemptible"]*float64(mt.MemoryMb)/1024
 							} else {
 								spotPrice[z] = price[types.CPU]["Preemptible"]*float64(mt.GuestCpus) + price[types.Memory]["Preemptible"]*float64(mt.MemoryMb)/1024
 							}
@@ -268,7 +273,7 @@ func (g *GceInfoer) Initialize() (map[string]map[string]types.Price, error) {
 	return allPrices, nil
 }
 
-func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, error) {
+func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, map[string]map[string]bool, error) {
 	var compEngId string
 	var nextPageToken string
 
@@ -279,7 +284,7 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, error)
 			PageToken(nextPageToken).
 			Do()
 		if err != nil {
-			return nil, fmt.Errorf("error fetching services: %w", err)
+			return nil, nil, fmt.Errorf("error fetching services: %w", err)
 		}
 
 		for _, svc := range svcList.Services {
@@ -303,12 +308,28 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, error)
 	// Handle the case where "Compute Engine" service is not found
 	if compEngId == "" {
 		g.log.Error("Compute Engine service not found")
-		return nil, fmt.Errorf("Compute Engine service not found")
+		return nil, nil, fmt.Errorf("compute Engine service not found")
 	}
+
+	standardMachineTypes := []string{
+		"A2", "A3", "A4", "C2", "C2D", "C3", "C3D", "C4", "C4A", "C4D",
+		"CT3", "CT3P", "CT5LP", "CT5P", "CT6E", "E2", "F1", "G1", "G2",
+		"M1", "M2", "M3", "M4", "N1", "N2", "N2D", "N4", "T2A", "T2D",
+		"X4", "Z3",
+	}
+
+	// This map stores standard machine with respect to region
+	regionStandardMachineMap := make(map[string]map[string]bool)
 
 	price := make(map[string]map[string]map[string]float64)
 	err := g.cbSvc.Services.Skus.List(compEngId).Pages(context.Background(), func(response *cloudbilling.ListSkusResponse) error {
 		for _, sku := range response.Skus {
+			if sku.Category.ResourceFamily != "Compute" {
+				// It can be Compute, Network, Storage
+				// We skip the SKU which is not Compute
+				continue
+			}
+
 			if sku.Category.ResourceGroup == "G1Small" || sku.Category.ResourceGroup == "F1Micro" {
 				priceInUsd, err := g.priceInUsd(sku.PricingInfo)
 				if err != nil {
@@ -339,9 +360,38 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, error)
 						}
 						if strings.Contains(sku.Description, "Instance Ram") {
 							price[region][types.Memory] = g.priceFromSku(price, region, types.Memory, sku.Category.UsageType, priceInUsd)
-						} else {
+						} else if strings.Contains(sku.Description, "Instance Core") {
 							price[region][types.CPU] = g.priceFromSku(price, region, types.CPU, sku.Category.UsageType, priceInUsd)
 						}
+					}
+				}
+			}
+			if sku.Category.ResourceGroup == "RAM" || sku.Category.ResourceGroup == "CPU" {
+				for _, standardMachineType := range standardMachineTypes {
+					if strings.Contains(sku.Description, standardMachineType) {
+						priceInUsd, err := g.priceInUsd(sku.PricingInfo)
+						if err != nil {
+							return err
+						}
+
+						standardMachineTypeName := strings.ToLower(standardMachineType) + "-" + types.CPU
+						if sku.Category.ResourceGroup == "RAM" {
+							standardMachineTypeName = strings.ToLower(standardMachineType) + "-" + types.Memory
+						}
+
+						for _, region := range sku.ServiceRegions {
+							if price[region] == nil {
+								price[region] = make(map[string]map[string]float64)
+							}
+							if regionStandardMachineMap[region] == nil {
+								regionStandardMachineMap[region] = make(map[string]bool)
+							}
+
+							price[region][standardMachineTypeName] = g.priceFromSku(price, region, standardMachineTypeName, sku.Category.UsageType, priceInUsd)
+							regionStandardMachineMap[region][strings.ToLower(standardMachineType)] = true
+						}
+
+						break
 					}
 				}
 			}
@@ -349,9 +399,9 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, error)
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return price, nil
+	return price, regionStandardMachineMap, nil
 }
 
 func (g *GceInfoer) priceInUsd(pricingInfos []*cloudbilling.PricingInfo) (float64, error) {
