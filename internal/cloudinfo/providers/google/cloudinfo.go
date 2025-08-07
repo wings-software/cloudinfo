@@ -311,10 +311,14 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, map[st
 		return nil, nil, fmt.Errorf("compute Engine service not found")
 	}
 
+	// CT3, CT3P, "CT5LP", "CT5P", "CT6E", "X4" not present in https://cloud.google.com/compute/vm-instance-pricing?hl=en
+	// F1, G1 already considered as G1Small, F1Micro
+	// A4 do not have any ondemand/ spot price but only reserved price
+	// Pricing for M1, M2 would fall to default
 	standardMachineTypes := []string{
-		"A2", "A3", "A4", "C2", "C2D", "C3", "C3D", "C4", "C4A", "C4D",
-		"CT3", "CT3P", "CT5LP", "CT5P", "CT6E", "E2", "F1", "G1", "G2",
-		"M1", "M2", "M3", "M4", "N1", "N2", "N2D", "N4", "T2A", "T2D",
+		"A2", "A3", "A4", "C2D", "C2", "C3D", "C3", "C4A", "C4D", "C4",
+		"CT3P", "CT3", "CT5LP", "CT5P", "CT6E", "E2", "F1", "G1", "G2",
+		"M1", "M2", "M3", "M4", "N1", "N2D", "N2", "N4", "T2A", "T2D",
 		"X4", "Z3",
 	}
 
@@ -366,9 +370,9 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, map[st
 					}
 				}
 			}
-			if sku.Category.ResourceGroup == "RAM" || sku.Category.ResourceGroup == "CPU" {
+			if (sku.Category.ResourceGroup == "RAM" || sku.Category.ResourceGroup == "CPU") && (sku.Category.UsageType == "OnDemand" || sku.Category.UsageType == "Preemptible") {
 				for _, standardMachineType := range standardMachineTypes {
-					if strings.Contains(sku.Description, standardMachineType) {
+					if strings.Contains(sku.Description, standardMachineType) && !strings.Contains(sku.Description, "Sole Tenancy") && !strings.Contains(sku.Description, "Custom") {
 						priceInUsd, err := g.priceInUsd(sku.PricingInfo)
 						if err != nil {
 							return err
