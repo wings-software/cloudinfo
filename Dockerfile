@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM us-west1-docker.pkg.dev/gar-setup/docker/harness/ubi8/go1:1.22 AS builder
+FROM harness0.harness.io/oci/docker_artifacts/harness/ubi8/go1:1.22 AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
@@ -54,7 +54,7 @@ RUN set -xe && \
 
 # Final image
 # FROM alpine:3.14.0
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM harness0.harness.io/oci/docker_artifacts/ubi8/ubi-minimal:latest
 USER root
 
 # RUN apk add --update --no-cache ca-certificates tzdata bash curl
