@@ -281,6 +281,9 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 			} else if strings.Contains(strings.ToLower(item.MeterName), "low priority") {
 				// ignore this as this is old spot type pricing
 			} else {
+				if region == "australiaeast" && item.ArmSkuName == "Standard_D8as_v5" {
+					a.log.Info(fmt.Sprintf("Crazy New Price %f", item.Price))
+				}
 				price.OnDemandPrice = item.Price
 			}
 
@@ -344,8 +347,18 @@ func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 				for _, instanceType := range instanceTypes {
 					price := allPrices[region][instanceType]
 					if !strings.Contains(*v.MeterName, "Low Priority") {
+						if region == "australiaeast" && instanceType == "Standard_D8as_v5" {
+							a.log.Info(fmt.Sprintf("Meter Name %s", *v.MeterName))
+							a.log.Info(fmt.Sprintf("Meter Category %s", *v.MeterCategory))
+							a.log.Info(fmt.Sprintf("Meter Sub-Category %s", *v.MeterSubCategory))
+							a.log.Info(fmt.Sprintf("Crazy Old Price %f", priceInUsd))
+							a.log.Info(fmt.Sprintf("Existing Price struct: %+v", price))
+						}
 						if price.OnDemandPrice == 0 {
 							price.OnDemandPrice = priceInUsd
+						}
+						if region == "australiaeast" && instanceType == "Standard_D8as_v5" {
+							a.log.Info(fmt.Sprintf("New Price struct: %+v", price))
 						}
 					} else {
 						if price.SpotPrice == nil {
@@ -366,6 +379,7 @@ func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 			}
 		}
 	}
+	a.log.Info(fmt.Sprintf("Final Price struct: %+v", allPrices["australiaeast"]["Standard_D8as_v5"]))
 	a.log.Debug("couldn't find regions", map[string]interface{}{"missingRegions": missingRegions})
 
 	a.log.Debug("finished initializing price info")
