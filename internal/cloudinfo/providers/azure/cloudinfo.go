@@ -16,7 +16,11 @@ package azure
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -54,6 +58,11 @@ var (
 		"uk": "uk",
 		"us": "us",
 		"za": "southafrica",
+		"pl": "poland",
+		"es": "spain",
+		"il": "israel",
+		"ch": "switzerland",
+		"mx": "mexico",
 	}
 
 	// mtBasic, _     = regexp.Compile("^BASIC.A\\d+[_Promo]*$")
@@ -199,10 +208,99 @@ func (a *AzureInfoer) checkRegionID(regionID string, regions map[string]string) 
 	return false
 }
 
+type RetailPriceItem struct {
+	ArmSkuName  string    `json:"armSkuName"`
+	Price       float64   `json:"retailPrice"`
+	ProductName string    `json:"productName"`
+	Region      string    `json:"armRegionName"`
+	StartDate   time.Time `json:"effectiveStartDate"`
+	MeterName   string    `json:"meterName"`
+}
+
+type RetailPriceResponse struct {
+	Items       []RetailPriceItem `json:"Items"`
+	NextPageURL string            `json:"NextPageLink"`
+}
+
+func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]types.Price, error) {
+	allPrices := make(map[string]map[string]types.Price)
+
+	filter := "serviceName eq 'Virtual Machines' and priceType eq 'Consumption'"
+	baseURL := "https://prices.azure.com/api/retail/prices?$filter=" + url.QueryEscape(filter)
+	// ex: https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20%27Virtual%20Machines%27%20and%20priceType%20eq%20%27Consumption%27%20and%20armSkuName%20eq%20%27Standard_D8as_v5%27%20and%20armRegionName%20eq%20%27australiaeast%27
+
+	url := baseURL
+	for url != "" {
+		client := &http.Client{}
+		req, _ := http.NewRequest("GET", url, nil)
+		req.Header.Set("User-Agent", "go-client")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return allPrices, fmt.Errorf("failed to call retail API: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return allPrices, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return allPrices, fmt.Errorf("error while getting body %w", err)
+		}
+
+		var data RetailPriceResponse
+		if err := json.Unmarshal(body, &data); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal retail API response: %w", err)
+		}
+
+		for _, item := range data.Items {
+			// Ignoring the windows pricing similar to below
+			if strings.Contains(strings.ToLower(item.ProductName), "windows") {
+				continue
+			}
+
+			// Ignoring the product if it do not contain virtual machines
+			if !strings.Contains(strings.ToLower(item.ProductName), "virtual machines") {
+				continue
+			}
+
+			region := strings.ToLower(item.Region)
+
+			if allPrices[region] == nil {
+				allPrices[region] = make(map[string]types.Price)
+			}
+
+			price := allPrices[region][item.ArmSkuName]
+			if strings.Contains(strings.ToLower(item.MeterName), "spot") {
+				spotPrice := make(types.SpotPriceInfo)
+				spotPrice[region] = item.Price
+				price.SpotPrice = spotPrice
+			} else if strings.Contains(strings.ToLower(item.MeterName), "low priority") {
+				// ignore this as this is old spot type pricing
+			} else {
+				price.OnDemandPrice = item.Price
+			}
+
+			allPrices[region][item.ArmSkuName] = price
+		}
+
+		url = data.NextPageURL
+	}
+
+	return allPrices, nil
+}
+
 // Initialize downloads and parses the Rate Card API's meter list on Azure
 func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 	a.log.Debug("initializing price info")
-	allPrices := make(map[string]map[string]types.Price)
+	allPrices, err := a.getPricingWithRetailPricesAPI()
+	if err != nil {
+		a.log.Error(fmt.Sprintf("error while fetching azure prices with retail prices API %v", err))
+		allPrices = make(map[string]map[string]types.Price)
+	}
 
 	regions, err := a.GetRegions("compute")
 	if err != nil {
@@ -246,12 +344,16 @@ func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 				for _, instanceType := range instanceTypes {
 					price := allPrices[region][instanceType]
 					if !strings.Contains(*v.MeterName, "Low Priority") {
-						price.OnDemandPrice = priceInUsd
+						if price.OnDemandPrice == 0 {
+							price.OnDemandPrice = priceInUsd
+						}
 					} else {
-						spotPrice := make(types.SpotPriceInfo)
-						spotPrice[region] = priceInUsd
-						price.SpotPrice = spotPrice
-						metrics.ReportAzureSpotPrice(region, instanceType, priceInUsd)
+						if price.SpotPrice == nil {
+							spotPrice := make(types.SpotPriceInfo)
+							spotPrice[region] = priceInUsd
+							price.SpotPrice = spotPrice
+							metrics.ReportAzureSpotPrice(region, instanceType, priceInUsd)
+						}
 					}
 
 					allPrices[region][instanceType] = price
