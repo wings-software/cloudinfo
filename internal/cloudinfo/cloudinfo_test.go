@@ -25,7 +25,8 @@ import (
 // DummyCloudInfoStore type implements the CloudInfoStore interface for mockig of external calls
 // the struct is to be extended according to the needs of test cases
 type DummyCloudInfoStore struct {
-	TcId string
+	TcId      string
+	customVMs []types.VMInfo
 	// implement the interface
 	CloudInfoStore
 }
@@ -53,6 +54,10 @@ func (dcis *DummyCloudInfoStore) GetVm(provider, service, region string) ([]type
 	case notCached:
 		return nil, false
 	default:
+		// If customVMs is provided, use it; otherwise use default VMs
+		if dcis.customVMs != nil {
+			return dcis.customVMs, true
+		}
 		return []types.VMInfo{
 				{Category: types.CategoryGeneral, Series: "series0", Type: "instanceType00"},
 				{Category: types.CategoryCompute, Series: "series1", Type: "instanceType10"},
@@ -212,13 +217,15 @@ func TestCachingCloudInfo_GetRegions(t *testing.T) {
 
 func TestCloudInfo_GetSeries(t *testing.T) {
 	tests := []struct {
-		name    string
-		ciStore CloudInfoStore
-		checker func(categorySeriesMap map[string]map[string][]string, seriesDetails []types.SeriesDetails, err error)
+		name     string
+		provider string
+		ciStore  CloudInfoStore
+		checker  func(categorySeriesMap map[string]map[string][]string, seriesDetails []types.SeriesDetails, err error)
 	}{
 		{
-			name:    "successfully retrieved the series",
-			ciStore: &DummyCloudInfoStore{},
+			name:     "successfully retrieved the series",
+			provider: "dummyProvider",
+			ciStore:  &DummyCloudInfoStore{},
 			checker: func(categorySeriesMap map[string]map[string][]string, seriesDetails []types.SeriesDetails, err error) {
 				assert.Nil(t, err, "the error should be nil")
 
@@ -242,11 +249,69 @@ func TestCloudInfo_GetSeries(t *testing.T) {
 			},
 		},
 		{
-			name:    "failed to retrieve series",
-			ciStore: &DummyCloudInfoStore{TcId: notCached},
+			name:     "failed to retrieve series",
+			provider: "dummyProvider",
+			ciStore:  &DummyCloudInfoStore{TcId: notCached},
 			checker: func(categorySeriesMap map[string]map[string][]string, seriesDetails []types.SeriesDetails, err error) {
 				assert.Nil(t, seriesDetails, "the seriesDetails should be nil")
 				assert.EqualError(t, err, "VMs Information not yet cached")
+			},
+		},
+		{
+			name:     "Azure instances with empty category mapped to General purpose",
+			provider: "azure",
+			ciStore: &DummyCloudInfoStore{
+				customVMs: []types.VMInfo{
+					{Category: "", Series: "DASv5", Type: "Standard_D16as_v5"},
+					{Category: "", Series: "DASv5", Type: "Standard_D2as_v5"},
+					{Category: types.CategoryMemory, Series: "Ev3", Type: "Standard_E16_v3"},
+				},
+			},
+			checker: func(categorySeriesMap map[string]map[string][]string, seriesDetails []types.SeriesDetails, err error) {
+				assert.Nil(t, err, "the error should be nil")
+
+				// Empty categories should be mapped to "General purpose" for Azure
+				assert.Equal(t, categorySeriesMap, map[string]map[string][]string{
+					types.CategoryGeneral: {
+						"DASv5": []string{"Standard_D16as_v5", "Standard_D2as_v5"},
+					},
+					types.CategoryMemory: {
+						"Ev3": []string{"Standard_E16_v3"},
+					},
+				})
+
+				assert.ElementsMatch(t, seriesDetails, []types.SeriesDetails{
+					{Series: "DASv5", Category: types.CategoryGeneral, InstanceTypes: []string{"Standard_D16as_v5", "Standard_D2as_v5"}},
+					{Series: "Ev3", Category: types.CategoryMemory, InstanceTypes: []string{"Standard_E16_v3"}},
+				})
+			},
+		},
+		{
+			name:     "non-Azure instances with empty category remain empty",
+			provider: "amazon",
+			ciStore: &DummyCloudInfoStore{
+				customVMs: []types.VMInfo{
+					{Category: "", Series: "t3", Type: "t3.micro"},
+					{Category: types.CategoryGeneral, Series: "m5", Type: "m5.large"},
+				},
+			},
+			checker: func(categorySeriesMap map[string]map[string][]string, seriesDetails []types.SeriesDetails, err error) {
+				assert.Nil(t, err, "the error should be nil")
+
+				// Empty categories should remain empty for non-Azure providers
+				assert.Equal(t, categorySeriesMap, map[string]map[string][]string{
+					"": {
+						"t3": []string{"t3.micro"},
+					},
+					types.CategoryGeneral: {
+						"m5": []string{"m5.large"},
+					},
+				})
+
+				assert.ElementsMatch(t, seriesDetails, []types.SeriesDetails{
+					{Series: "t3", Category: "", InstanceTypes: []string{"t3.micro"}},
+					{Series: "m5", Category: types.CategoryGeneral, InstanceTypes: []string{"m5.large"}},
+				})
 			},
 		},
 	}
@@ -254,7 +319,7 @@ func TestCloudInfo_GetSeries(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			info, _ := NewCloudInfo([]string{}, &DummyCloudInfoStore{}, cloudinfoLogger)
 			info.cloudInfoStore = test.ciStore
-			test.checker(info.GetSeriesDetails("dummyProvider", "dummyService", "dummyRegion"))
+			test.checker(info.GetSeriesDetails(test.provider, "dummyService", "dummyRegion"))
 		})
 	}
 }

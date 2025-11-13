@@ -186,15 +186,24 @@ func (cpi *cloudInfo) GetSeriesDetails(provider, service, region string) (map[st
 		return nil, nil, errors.NewWithDetails("VMs Information not yet cached", "provider", provider, "service", service, "region", region)
 	}
 
+	// For Azure, map empty categories to "General purpose"
+	isAzure := strings.ToLower(provider) == "azure"
+
 	categorySeriesMap := map[string]map[string][]string{}
 	for _, vm := range vms {
-		if _, ok := categorySeriesMap[vm.Category]; !ok {
-			categorySeriesMap[vm.Category] = map[string][]string{}
+		category := vm.Category
+		// Map empty category to "General purpose" for Azure instances
+		if isAzure && category == "" {
+			category = types.CategoryGeneral
 		}
-		if _, ok := categorySeriesMap[vm.Category][vm.Series]; !ok {
-			categorySeriesMap[vm.Category][vm.Series] = make([]string, 0)
+
+		if _, ok := categorySeriesMap[category]; !ok {
+			categorySeriesMap[category] = map[string][]string{}
 		}
-		categorySeriesMap[vm.Category][vm.Series] = append(categorySeriesMap[vm.Category][vm.Series], vm.Type)
+		if _, ok := categorySeriesMap[category][vm.Series]; !ok {
+			categorySeriesMap[category][vm.Series] = make([]string, 0)
+		}
+		categorySeriesMap[category][vm.Series] = append(categorySeriesMap[category][vm.Series], vm.Type)
 	}
 
 	var seriesDetails []types.SeriesDetails
