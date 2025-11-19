@@ -57,6 +57,8 @@ RUN set -xe && \
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 USER root
 
+RUN microdnf update -y libxml2 && microdnf clean all
+
 # RUN apk add --update --no-cache ca-certificates tzdata bash curl
 
 SHELL ["/bin/bash", "-c"]
