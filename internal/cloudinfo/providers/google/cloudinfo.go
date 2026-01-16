@@ -373,6 +373,10 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, map[st
 			if (sku.Category.ResourceGroup == "RAM" || sku.Category.ResourceGroup == "CPU") && (sku.Category.UsageType == "OnDemand" || sku.Category.UsageType == "Preemptible") {
 				for _, standardMachineType := range standardMachineTypes {
 					if strings.Contains(sku.Description, standardMachineType) && !strings.Contains(sku.Description, "Sole Tenancy") && !strings.Contains(sku.Description, "Custom") {
+						// Skip "Reserved" SKUs for on-demand pricing - this was causing pricing to be updated to 0 sometimes
+						if sku.Category.UsageType == "OnDemand" && strings.Contains(sku.Description, "Reserved") {
+							continue
+						}
 						priceInUsd, err := g.priceInUsd(sku.PricingInfo)
 						if err != nil {
 							return err
@@ -425,6 +429,14 @@ func (g *GceInfoer) priceFromSku(price map[string]map[string]map[string]float64,
 	if pr == nil {
 		pr = make(map[string]float64)
 	}
+
+	// Don't overwrite a non-zero price with zero - this prevents zero-price SKUs from overwriting valid prices
+	if priceInUsd == 0 {
+		if existingPrice, exists := pr[priceType]; exists && existingPrice > 0 {
+			return pr
+		}
+	}
+
 	pr[priceType] = priceInUsd
 
 	return pr
