@@ -1,6 +1,8 @@
 module github.com/banzaicloud/cloudinfo
 
-go 1.20
+go 1.24.6
+
+toolchain go1.24.11
 
 require (
 	cloud.google.com/go/profiler v0.3.1
@@ -33,7 +35,7 @@ require (
 	github.com/prometheus/client_golang v1.13.0
 	github.com/prometheus/common v0.37.0
 	github.com/sagikazarmark/viperx v0.8.0
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.8.3
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.8.4
