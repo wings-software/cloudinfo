@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM us-west1-docker.pkg.dev/gar-setup/docker/harness/ubi8/go1:1.22 AS builder
+FROM us-west1-docker.pkg.dev/gar-setup/docker/ubi9/go1:1.25-rfcurated AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
