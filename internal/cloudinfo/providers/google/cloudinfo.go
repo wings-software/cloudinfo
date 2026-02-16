@@ -318,8 +318,8 @@ func (g *GceInfoer) getPrice() (map[string]map[string]map[string]float64, map[st
 	standardMachineTypes := []string{
 		"A2", "A3", "A4", "C2D", "C2", "C3D", "C3", "C4A", "C4D", "C4",
 		"CT3P", "CT3", "CT5LP", "CT5P", "CT6E", "E2", "F1", "G1", "G2",
-		"M1", "M2", "M3", "M4", "N1", "N2D", "N2", "N4", "T2A", "T2D",
-		"X4", "Z3",
+		"M1", "M2", "M3", "M4", "N1", "N2D", "N2", "N4A", "N4D", "N4",
+		"T2A", "T2D", "X4", "Z3",
 	}
 
 	// This map stores standard machine with respect to region
