@@ -526,17 +526,7 @@ func (a *AzureInfoer) GetProducts(vms []types.VMInfo, service, regionId string) 
 	}
 	switch service {
 	case svcAks:
-		var virtualMachines []types.VMInfo
-		possibleVmTypes := containerservice.PossibleVMSizeTypesValues()
-		for _, vm := range possibleVmTypes {
-			for _, virtualMachine := range vmList {
-				if string(vm) == virtualMachine.Type {
-					virtualMachines = append(virtualMachines, virtualMachine)
-					break
-				}
-			}
-		}
-		return virtualMachines, nil
+		return vmList, nil
 	case "compute":
 		return vmList, nil
 	default:
