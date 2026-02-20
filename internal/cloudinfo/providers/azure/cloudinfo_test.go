@@ -540,6 +540,9 @@ func TestAzureInfoer_GetProducts(t *testing.T) {
 			vmSizes: &testStruct{},
 			check: func(vms []types.VMInfo, err error) {
 				assert.Nil(t, err, "the error should be nil")
+				// AKS now returns all VMs dynamically fetched from Azure, not filtered by static enum
+				// This ensures newer VM sizes like Dasv5 are included
+				assert.Len(t, vms, 3, "aks should return all VMs")
 				var cpus []float64
 				var mems []float64
 
@@ -547,8 +550,8 @@ func TestAzureInfoer_GetProducts(t *testing.T) {
 					cpus = append(cpus, vm.Cpus)
 					mems = append(mems, vm.Mem)
 				}
-				assert.ElementsMatch(t, cpus, []float64{4, 8})
-				assert.ElementsMatch(t, mems, []float64{32, 32})
+				assert.ElementsMatch(t, cpus, []float64{4, 8, 2})
+				assert.ElementsMatch(t, mems, []float64{32, 32, 5})
 			},
 		},
 		{
