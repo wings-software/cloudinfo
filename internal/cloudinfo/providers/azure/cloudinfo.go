@@ -527,7 +527,6 @@ func (a *AzureInfoer) GetProducts(vms []types.VMInfo, service, regionId string) 
 
 	switch service {
 	case svcAks:
-		// Debug logging for DAS family VMs (e.g. Standard_D64as_v5) to troubleshoot missing VM types in AKS
 		dasCount := 0
 		dasSample := make([]string, 0)
 		for _, vm := range vmList {
