@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -83,6 +84,10 @@ func (sm *scrapingManager) scrapeServiceRegionProducts(ctx context.Context, serv
 			metrics.OnDemandPriceGauge.WithLabelValues(sm.provider, regionId, vm.Type).Set(vm.OnDemandPrice)
 		}
 	}
+
+	// Debug: log VM counts before storing to Redis (first write)
+	logger.Info("scrapeServiceRegionProducts: storing VMs to cache (before updateVirtualMachines)",
+		map[string]interface{}{"totalVMs": len(values), "provider": sm.provider})
 
 	sm.store.StoreVm(sm.provider, service, regionId, values)
 
@@ -196,7 +201,34 @@ func (sm *scrapingManager) scrapeServiceRegionInfo(ctx context.Context, services
 
 func (sm *scrapingManager) updateStatus(ctx context.Context) {
 	values := strconv.Itoa(int(time.Now().UnixNano() / 1e6))
-	sm.log.Info("updating status for provider")
+
+	// Collect services and their regions for this provider to log alongside scrapingTime
+	storedServices, ok := sm.store.GetServices(sm.provider)
+	servicesInfo := make(map[string][]string)
+	if ok {
+		for _, svc := range storedServices {
+			regions, err := sm.infoer.GetRegions(svc.ServiceName())
+			if err == nil {
+				regionList := make([]string, 0, len(regions))
+				for regionId := range regions {
+					regionList = append(regionList, regionId)
+				}
+				servicesInfo[svc.ServiceName()] = regionList
+			}
+		}
+	}
+
+	serviceNames := make([]string, 0, len(servicesInfo))
+	for svc := range servicesInfo {
+		serviceNames = append(serviceNames, svc)
+	}
+
+	sm.log.Info("updating status for provider (scrapingTime)", map[string]interface{}{
+		"provider":     sm.provider,
+		"scrapingTime": values,
+		"services":     fmt.Sprintf("%v", serviceNames),
+		"regionCount":  len(servicesInfo),
+	})
 	sm.store.StoreStatus(sm.provider, values)
 }
 
@@ -272,6 +304,10 @@ func (sm *scrapingManager) updateVirtualMachines(service, region string) error {
 	}
 
 	virtualMachines := make([]types.VMInfo, 0, len(vms))
+	skippedAll := make([]string, 0)
+	skippedDasVMs := make([]string, 0)
+	keptDasCount := 0
+
 	for _, vm := range vms {
 		prices, found := sm.store.GetPrice(sm.provider, region, vm.Type)
 
@@ -283,14 +319,67 @@ func (sm *scrapingManager) updateVirtualMachines(service, region string) error {
 
 		if vm.OnDemandPrice != 0 {
 			virtualMachines = append(virtualMachines, vm)
+			if isDasFamily(vm.Type) {
+				keptDasCount++
+			}
+		} else {
+			skippedAll = append(skippedAll, vm.Type)
+			if isDasFamily(vm.Type) {
+				skippedDasVMs = append(skippedDasVMs, vm.Type)
+			}
 		}
+	}
+
+	sm.log.Info("updateVirtualMachines: filtering complete",
+		map[string]interface{}{
+			"service":            service,
+			"region":             region,
+			"inputVMs":           len(vms),
+			"keptVMs":            len(virtualMachines),
+			"skippedVMs":         len(skippedAll),
+			"allSkippedMachines": fmt.Sprintf("%v", skippedAll),
+			"keptDasVMs":         keptDasCount,
+			"skippedDasCount":    len(skippedDasVMs),
+			"skippedDasMachines": fmt.Sprintf("%v", skippedDasVMs),
+		})
+
+	// Log current VM count in cache before delete
+	existingVms, existingOk := sm.store.GetVm(sm.provider, service, region)
+	if existingOk {
+		sm.log.Info("updateVirtualMachines: current cache state before delete",
+			map[string]interface{}{
+				"service":          service,
+				"region":           region,
+				"currentCachedVMs": len(existingVms),
+			})
 	}
 
 	sm.store.DeleteVm(sm.provider, service, region)
 	sm.store.StoreVm(sm.provider, service, region, virtualMachines)
 
+	// Log VM count in cache after update
+	updatedVms, updatedOk := sm.store.GetVm(sm.provider, service, region)
+	updatedCount := 0
+	if updatedOk {
+		updatedCount = len(updatedVms)
+	}
+	sm.log.Info("updateVirtualMachines: cache updated",
+		map[string]interface{}{
+			"service":         service,
+			"region":          region,
+			"storedVMs":       len(virtualMachines),
+			"cacheVMsAfter":   updatedCount,
+		})
+
 	return nil
 }
+
+// isDasFamily checks if a VM type belongs to DAS family (e.g., Standard_D64as_v5)
+func isDasFamily(vmType string) bool {
+	return strings.Contains(strings.ToLower(vmType), "as_v")
+}
+
+
 
 // scrape implements the scraping logic for a provider
 func (sm *scrapingManager) scrape(ctx context.Context) {

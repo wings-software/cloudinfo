@@ -524,8 +524,26 @@ func (a *AzureInfoer) GetProducts(vms []types.VMInfo, service, regionId string) 
 			return nil, emperror.Wrap(err, "failed to get products")
 		}
 	}
+
 	switch service {
 	case svcAks:
+		// Debug logging for DAS family VMs (e.g. Standard_D64as_v5) to troubleshoot missing VM types in AKS
+		dasCount := 0
+		dasSample := make([]string, 0)
+		for _, vm := range vmList {
+			if strings.Contains(strings.ToLower(vm.Type), "as_v") {
+				dasCount++
+				if len(dasSample) < 10 {
+					dasSample = append(dasSample, vm.Type)
+				}
+			}
+		}
+		a.log.Info("GetProducts for AKS - VM summary", map[string]interface{}{
+			"region":         regionId,
+			"totalVMs":       len(vmList),
+			"dasFamilyCount": dasCount,
+			"dasSample":      fmt.Sprintf("%v", dasSample),
+		})
 		return vmList, nil
 	case "compute":
 		return vmList, nil
