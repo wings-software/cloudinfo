@@ -50,18 +50,29 @@ func (sm *scrapingManager) initialize(ctx context.Context) {
 	sm.log.Info("initializing cloud product information")
 	prices, err := sm.infoer.Initialize()
 	if err != nil {
-		sm.log.Error("failed to initialize cloud product information")
+		sm.log.Error("failed to initialize cloud product information", map[string]interface{}{"error": fmt.Sprintf("%v", err)})
 		sm.errorHandler.Handle(err)
 		return
 	}
 
+	totalStored := 0
+	totalRegions := len(prices)
+	zeroOnDemand := 0
 	for region, ap := range prices {
 		for instType, p := range ap {
 			sm.store.StorePrice(sm.provider, region, instType, p)
 			metrics.OnDemandPriceGauge.WithLabelValues(sm.provider, region, instType).Set(p.OnDemandPrice)
+			totalStored++
+			if p.OnDemandPrice == 0 {
+				zeroOnDemand++
+			}
 		}
 	}
-	sm.log.Info("finished initializing cloud product information")
+	sm.log.Info("finished initializing cloud product information", map[string]interface{}{
+		"totalRegions":       totalRegions,
+		"totalPricesStored":  totalStored,
+		"zeroOnDemandPrices": zeroOnDemand,
+	})
 }
 
 func (sm *scrapingManager) scrapeServiceRegionProducts(ctx context.Context, service string, regionId string) error {

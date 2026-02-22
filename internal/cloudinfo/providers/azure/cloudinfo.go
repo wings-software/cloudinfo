@@ -229,6 +229,16 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 	baseURL := "https://prices.azure.com/api/retail/prices?$filter=" + url.QueryEscape(filter)
 	// ex: https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20%27Virtual%20Machines%27%20and%20priceType%20eq%20%27Consumption%27%20and%20armSkuName%20eq%20%27Standard_D8as_v5%27%20and%20armRegionName%20eq%20%27australiaeast%27
 
+	startTime := time.Now()
+	a.log.Info("RetailPricesAPI: starting fetch")
+
+	pageCount := 0
+	totalItems := 0
+	totalSkippedWindows := 0
+	totalSkippedNonVM := 0
+	totalOnDemandSet := 0
+	totalSpotSet := 0
+
 	url := baseURL
 	for url != "" {
 		client := &http.Client{}
@@ -237,12 +247,23 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 
 		resp, err := client.Do(req)
 		if err != nil {
+			a.log.Error("RetailPricesAPI: request failed", map[string]interface{}{
+				"page":        pageCount,
+				"elapsedMins": time.Since(startTime).Minutes(),
+				"error":       err.Error(),
+			})
 			return allPrices, fmt.Errorf("failed to call retail API: %w", err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
+			a.log.Error("RetailPricesAPI: non-200 status", map[string]interface{}{
+				"statusCode":  resp.StatusCode,
+				"page":        pageCount,
+				"elapsedMins": time.Since(startTime).Minutes(),
+				"body":        string(body),
+			})
 			return allPrices, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
 		}
 
@@ -256,14 +277,19 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 			return nil, fmt.Errorf("failed to unmarshal retail API response: %w", err)
 		}
 
+		pageCount++
+		totalItems += len(data.Items)
+
 		for _, item := range data.Items {
 			// Ignoring the windows pricing similar to below
 			if strings.Contains(strings.ToLower(item.ProductName), "windows") {
+				totalSkippedWindows++
 				continue
 			}
 
 			// Ignoring the product if it do not contain virtual machines
 			if !strings.Contains(strings.ToLower(item.ProductName), "virtual machines") {
+				totalSkippedNonVM++
 				continue
 			}
 
@@ -278,10 +304,12 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 				spotPrice := make(types.SpotPriceInfo)
 				spotPrice[region] = item.Price
 				price.SpotPrice = spotPrice
+				totalSpotSet++
 			} else if strings.Contains(strings.ToLower(item.MeterName), "low priority") {
 				// ignore this as this is old spot type pricing
 			} else {
 				price.OnDemandPrice = item.Price
+				totalOnDemandSet++
 			}
 
 			allPrices[region][item.ArmSkuName] = price
@@ -289,6 +317,24 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 
 		url = data.NextPageURL
 	}
+
+	// Count unique VMs per region for summary
+	totalUniqueVMs := 0
+	for _, regionPrices := range allPrices {
+		totalUniqueVMs += len(regionPrices)
+	}
+
+	a.log.Info("RetailPricesAPI: fetch complete", map[string]interface{}{
+		"totalPages":          pageCount,
+		"totalItems":          totalItems,
+		"skippedWindows":      totalSkippedWindows,
+		"skippedNonVM":        totalSkippedNonVM,
+		"onDemandPricesSet":   totalOnDemandSet,
+		"spotPricesSet":       totalSpotSet,
+		"regionsWithPrices":   len(allPrices),
+		"totalUniqueVMPrices": totalUniqueVMs,
+		"elapsedMins":         time.Since(startTime).Minutes(),
+	})
 
 	return allPrices, nil
 }
@@ -302,6 +348,17 @@ func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 		allPrices = make(map[string]map[string]types.Price)
 	}
 
+	// Count prices after Retail API
+	retailVMCount := 0
+	retailRegionCount := len(allPrices)
+	for _, regionPrices := range allPrices {
+		retailVMCount += len(regionPrices)
+	}
+	a.log.Info("Initialize: after RetailPricesAPI", map[string]interface{}{
+		"retailRegions":  retailRegionCount,
+		"retailVMPrices": retailVMCount,
+	})
+
 	regions, err := a.GetRegions("compute")
 	if err != nil {
 		return nil, err
@@ -310,63 +367,126 @@ func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 	rateCardFilter := "OfferDurableId eq 'MS-AZR-0003p' and Currency eq 'USD' and Locale eq 'en-US' and RegionInfo eq 'US'"
 	// ResourceRateCardInfo is a huge object, it takes around 3-5 minutes to fetch this
 	startTime := time.Now()
-	a.log.Info("Fetching Azure ResourceRateCardInfo")
+	a.log.Info("RateCardAPI: starting fetch")
 	result, err := a.rateCardClient.Get(context.TODO(), rateCardFilter)
-	a.log.Info("Fetched Azure ResourceRateCardInfo", map[string]interface{}{"minutesTaken": time.Since(startTime).Minutes()})
+	a.log.Info("RateCardAPI: fetch complete", map[string]interface{}{"elapsedMins": time.Since(startTime).Minutes()})
 	if err != nil {
+		a.log.Error("RateCardAPI: fetch failed", map[string]interface{}{"error": err.Error()})
 		return nil, err
 	}
 
+	totalMeters := len(*result.Meters)
+	vmMeters := 0
+	skippedWindows := 0
+	skippedNoRegion := 0
+	skippedTags := 0
+	rateCardOnDemandSet := 0
+	rateCardOnDemandSkippedRetailExists := 0
+	rateCardSpotSet := 0
+	rateCardVariantsSet := 0
+
 	var missingRegions []string
 	for _, v := range *result.Meters {
-		if *v.MeterCategory == "Virtual Machines" && len(*v.MeterTags) == 0 && *v.MeterRegion != "" {
-			if !strings.Contains(*v.MeterSubCategory, "Windows") {
-				region, err := a.toRegionID(*v.MeterRegion, regions)
-				if err != nil {
-					missingRegions = appendIfMissing(missingRegions, *v.MeterRegion)
-					continue
-				}
+		if *v.MeterCategory != "Virtual Machines" {
+			continue
+		}
+		if len(*v.MeterTags) != 0 {
+			skippedTags++
+			continue
+		}
+		if *v.MeterRegion == "" {
+			skippedNoRegion++
+			continue
+		}
+		if strings.Contains(*v.MeterSubCategory, "Windows") {
+			skippedWindows++
+			continue
+		}
 
-				instanceTypes := a.machineType(*v.MeterName, *v.MeterSubCategory)
+		vmMeters++
+		region, err := a.toRegionID(*v.MeterRegion, regions)
+		if err != nil {
+			missingRegions = appendIfMissing(missingRegions, *v.MeterRegion)
+			continue
+		}
 
-				var priceInUsd float64
+		instanceTypes := a.machineType(*v.MeterName, *v.MeterSubCategory)
 
-				if len(v.MeterRates) < 1 {
-					a.log.Debug("missing rate info", map[string]interface{}{"MeterSubCategory": *v.MeterSubCategory, "region": region})
-					continue
-				}
-				for _, rate := range v.MeterRates {
-					priceInUsd += *rate
-				}
-				if allPrices[region] == nil {
-					allPrices[region] = make(map[string]types.Price)
-				}
-				for _, instanceType := range instanceTypes {
-					price := allPrices[region][instanceType]
-					if !strings.Contains(*v.MeterName, "Low Priority") {
-						if price.OnDemandPrice == 0 {
-							price.OnDemandPrice = priceInUsd
-						}
-					} else {
-						if price.SpotPrice == nil {
-							spotPrice := make(types.SpotPriceInfo)
-							spotPrice[region] = priceInUsd
-							price.SpotPrice = spotPrice
-							metrics.ReportAzureSpotPrice(region, instanceType, priceInUsd)
-						}
-					}
+		var priceInUsd float64
 
-					allPrices[region][instanceType] = price
-
-					mts := a.getMachineTypeVariants(instanceType)
-					for _, mt := range mts {
-						allPrices[region][mt] = price
-					}
+		if len(v.MeterRates) < 1 {
+			a.log.Warn("missing rate info", map[string]interface{}{"MeterSubCategory": *v.MeterSubCategory, "region": region})
+			continue
+		}
+		for _, rate := range v.MeterRates {
+			priceInUsd += *rate
+		}
+		if allPrices[region] == nil {
+			allPrices[region] = make(map[string]types.Price)
+		}
+		for _, instanceType := range instanceTypes {
+			price := allPrices[region][instanceType]
+			if !strings.Contains(*v.MeterName, "Low Priority") {
+				if price.OnDemandPrice == 0 {
+					price.OnDemandPrice = priceInUsd
+					rateCardOnDemandSet++
+				} else {
+					rateCardOnDemandSkippedRetailExists++
 				}
+			} else {
+				if price.SpotPrice == nil {
+					spotPrice := make(types.SpotPriceInfo)
+					spotPrice[region] = priceInUsd
+					price.SpotPrice = spotPrice
+					metrics.ReportAzureSpotPrice(region, instanceType, priceInUsd)
+					rateCardSpotSet++
+				}
+			}
+
+			allPrices[region][instanceType] = price
+
+			mts := a.getMachineTypeVariants(instanceType)
+			for _, mt := range mts {
+				allPrices[region][mt] = price
+				rateCardVariantsSet++
 			}
 		}
 	}
 	a.log.Debug("couldn't find regions", map[string]interface{}{"missingRegions": missingRegions})
+
+	a.log.Info("RateCardAPI: processing complete", map[string]interface{}{
+		"totalMeters":                   totalMeters,
+		"vmMeters":                      vmMeters,
+		"skippedWindows":                skippedWindows,
+		"skippedNoRegion":               skippedNoRegion,
+		"skippedTags":                   skippedTags,
+		"missingRegions":                len(missingRegions),
+		"rateCardOnDemandSet":           rateCardOnDemandSet,
+		"rateCardOnDemandSkippedRetail": rateCardOnDemandSkippedRetailExists,
+		"rateCardSpotSet":               rateCardSpotSet,
+		"rateCardVariantsSet":           rateCardVariantsSet,
+	})
+
+	// Final summary after merging both APIs
+	finalVMCount := 0
+	finalRegionCount := len(allPrices)
+	zeroOnDemandCount := 0
+	for _, regionPrices := range allPrices {
+		for _, p := range regionPrices {
+			finalVMCount++
+			if p.OnDemandPrice == 0 {
+				zeroOnDemandCount++
+			}
+		}
+	}
+	a.log.Info("Initialize: final merged prices", map[string]interface{}{
+		"finalRegions":    finalRegionCount,
+		"finalVMPrices":   finalVMCount,
+		"zeroOnDemandVMs": zeroOnDemandCount,
+		"retailContrib":   retailVMCount,
+		"rateCardContrib": rateCardOnDemandSet,
+		"variantsContrib": rateCardVariantsSet,
+	})
 
 	a.log.Debug("finished initializing price info")
 	return allPrices, nil
