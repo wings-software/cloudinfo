@@ -340,30 +340,14 @@ func (sm *scrapingManager) updateVirtualMachines(service, region string) error {
 			"allSkippedMachines": fmt.Sprintf("%v", skippedAll),
 		})
 
-	existingVms, existingOk := sm.store.GetVm(sm.provider, service, region)
-	if existingOk {
-		sm.log.Info("updateVirtualMachines: current cache state before delete",
-			map[string]interface{}{
-				"service":          service,
-				"region":           region,
-				"currentCachedVMs": len(existingVms),
-			})
-	}
-
 	sm.store.DeleteVm(sm.provider, service, region)
 	sm.store.StoreVm(sm.provider, service, region, virtualMachines)
 
-	updatedVms, updatedOk := sm.store.GetVm(sm.provider, service, region)
-	updatedCount := 0
-	if updatedOk {
-		updatedCount = len(updatedVms)
-	}
 	sm.log.Info("updateVirtualMachines: cache updated",
 		map[string]interface{}{
-			"service":       service,
-			"region":        region,
-			"storedVMs":     len(virtualMachines),
-			"cacheVMsAfter": updatedCount,
+			"service":   service,
+			"region":    region,
+			"storedVMs": len(virtualMachines),
 		})
 
 	return nil
