@@ -50,18 +50,29 @@ func (sm *scrapingManager) initialize(ctx context.Context) {
 	sm.log.Info("initializing cloud product information")
 	prices, err := sm.infoer.Initialize()
 	if err != nil {
-		sm.log.Error("failed to initialize cloud product information")
+		sm.log.Error("failed to initialize cloud product information", map[string]interface{}{"error": fmt.Sprintf("%v", err)})
 		sm.errorHandler.Handle(err)
 		return
 	}
 
+	totalStored := 0
+	totalRegions := len(prices)
+	zeroOnDemand := 0
 	for region, ap := range prices {
 		for instType, p := range ap {
 			sm.store.StorePrice(sm.provider, region, instType, p)
 			metrics.OnDemandPriceGauge.WithLabelValues(sm.provider, region, instType).Set(p.OnDemandPrice)
+			totalStored++
+			if p.OnDemandPrice == 0 {
+				zeroOnDemand++
+			}
 		}
 	}
-	sm.log.Info("finished initializing cloud product information")
+	sm.log.Info("finished initializing cloud product information", map[string]interface{}{
+		"totalRegions":       totalRegions,
+		"totalPricesStored":  totalStored,
+		"zeroOnDemandPrices": zeroOnDemand,
+	})
 }
 
 func (sm *scrapingManager) scrapeServiceRegionProducts(ctx context.Context, service string, regionId string) error {
@@ -83,6 +94,9 @@ func (sm *scrapingManager) scrapeServiceRegionProducts(ctx context.Context, serv
 			metrics.OnDemandPriceGauge.WithLabelValues(sm.provider, regionId, vm.Type).Set(vm.OnDemandPrice)
 		}
 	}
+
+	logger.Info("scrapeServiceRegionProducts: storing VMs to cache (before updateVirtualMachines)",
+		map[string]interface{}{"totalVMs": len(values), "provider": sm.provider})
 
 	sm.store.StoreVm(sm.provider, service, regionId, values)
 
@@ -196,7 +210,33 @@ func (sm *scrapingManager) scrapeServiceRegionInfo(ctx context.Context, services
 
 func (sm *scrapingManager) updateStatus(ctx context.Context) {
 	values := strconv.Itoa(int(time.Now().UnixNano() / 1e6))
-	sm.log.Info("updating status for provider")
+
+	storedServices, ok := sm.store.GetServices(sm.provider)
+	servicesInfo := make(map[string][]string)
+	if ok {
+		for _, svc := range storedServices {
+			regions, err := sm.infoer.GetRegions(svc.ServiceName())
+			if err == nil {
+				regionList := make([]string, 0, len(regions))
+				for regionId := range regions {
+					regionList = append(regionList, regionId)
+				}
+				servicesInfo[svc.ServiceName()] = regionList
+			}
+		}
+	}
+
+	serviceNames := make([]string, 0, len(servicesInfo))
+	for svc := range servicesInfo {
+		serviceNames = append(serviceNames, svc)
+	}
+
+	sm.log.Info("updating status for provider (scrapingTime)", map[string]interface{}{
+		"provider":     sm.provider,
+		"scrapingTime": values,
+		"services":     fmt.Sprintf("%v", serviceNames),
+		"regionCount":  len(servicesInfo),
+	})
 	sm.store.StoreStatus(sm.provider, values)
 }
 
@@ -272,6 +312,8 @@ func (sm *scrapingManager) updateVirtualMachines(service, region string) error {
 	}
 
 	virtualMachines := make([]types.VMInfo, 0, len(vms))
+	skippedAll := make([]string, 0)
+
 	for _, vm := range vms {
 		prices, found := sm.store.GetPrice(sm.provider, region, vm.Type)
 
@@ -283,11 +325,30 @@ func (sm *scrapingManager) updateVirtualMachines(service, region string) error {
 
 		if vm.OnDemandPrice != 0 {
 			virtualMachines = append(virtualMachines, vm)
+		} else {
+			skippedAll = append(skippedAll, vm.Type)
 		}
 	}
 
+	sm.log.Info("updateVirtualMachines: filtering complete",
+		map[string]interface{}{
+			"service":            service,
+			"region":             region,
+			"inputVMs":           len(vms),
+			"keptVMs":            len(virtualMachines),
+			"skippedVMs":         len(skippedAll),
+			"allSkippedMachines": fmt.Sprintf("%v", skippedAll),
+		})
+
 	sm.store.DeleteVm(sm.provider, service, region)
 	sm.store.StoreVm(sm.provider, service, region, virtualMachines)
+
+	sm.log.Info("updateVirtualMachines: cache updated",
+		map[string]interface{}{
+			"service":   service,
+			"region":    region,
+			"storedVMs": len(virtualMachines),
+		})
 
 	return nil
 }
