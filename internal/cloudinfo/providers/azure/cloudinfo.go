@@ -115,7 +115,16 @@ type ResourceSkuRetriever interface {
 
 // NewAzureInfoer creates a new instance of the Azure infoer.
 func NewAzureInfoer(config Config, logger cloudinfo.Logger) (*AzureInfoer, error) {
+	logger.Info("NewAzureInfoer: config received", map[string]interface{}{
+		"configSubscriptionId": config.SubscriptionID,
+		"configTenantId":       config.TenantID,
+		"configClientId":       config.ClientID,
+		"hasClientSecret":      config.ClientSecret != "",
+	})
+
 	var authorizer autorest.Authorizer
+	authSource := "none"
+
 	if config.ClientID != "" && config.ClientSecret != "" && config.TenantID != "" {
 		credentialsConfig := auth.NewClientCredentialsConfig(config.ClientID, config.ClientSecret, config.TenantID)
 		a, err := credentialsConfig.Authorizer()
@@ -124,18 +133,27 @@ func NewAzureInfoer(config Config, logger cloudinfo.Logger) (*AzureInfoer, error
 		}
 
 		authorizer = a
+		authSource = "clientCredentials"
+		logger.Info("NewAzureInfoer: using client credentials auth")
 	}
 
 	if authorizer == nil {
+		logger.Info("NewAzureInfoer: client credentials not available, trying environment auth")
 		a, err := auth.NewAuthorizerFromEnvironment()
 		authorizer = a
 		if err != nil { // Failed to create authorizer from environment, try from file
+			logger.Info("NewAzureInfoer: environment auth failed, trying file auth", map[string]interface{}{
+				"envAuthError": err.Error(),
+			})
 			a, err := auth.NewAuthorizerFromFile(azure.PublicCloud.ResourceManagerEndpoint)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get authorizer from both env and file")
 			}
 
 			authorizer = a
+			authSource = "file"
+		} else {
+			authSource = "environment"
 		}
 	}
 
@@ -154,16 +172,11 @@ func NewAzureInfoer(config Config, logger cloudinfo.Logger) (*AzureInfoer, error
 	containerServiceClient := containerservice.NewContainerServicesClient(config.SubscriptionID)
 	containerServiceClient.Authorizer = authorizer
 
-	authSource := "clientCredentials"
-	if config.ClientID == "" {
-		authSource = "environment/file"
-	}
-
-	logger.Info("NewAzureInfoer: created", map[string]interface{}{
+	logger.Info("NewAzureInfoer: initialized", map[string]interface{}{
+		"authSource":     authSource,
 		"subscriptionId": config.SubscriptionID,
 		"tenantId":       config.TenantID,
 		"clientId":       config.ClientID,
-		"authSource":     authSource,
 	})
 
 	return &AzureInfoer{
