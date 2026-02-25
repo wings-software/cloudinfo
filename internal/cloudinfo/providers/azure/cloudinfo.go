@@ -601,27 +601,41 @@ func (a *AzureInfoer) addSuffix(mt string, suffixes ...string) []string {
 
 func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) {
 	logger := a.log.WithFields(map[string]interface{}{"region": region})
-	logger.Info("GetVirtualMachines: starting", map[string]interface{}{
+	startTime := time.Now()
+
+	logger.Info("GetVirtualMachines: starting SKU API call", map[string]interface{}{
 		"subscriptionId": a.subscriptionId,
 	})
 
 	skusResultPage, err := a.skusClient.List(context.Background())
 	if err != nil {
+		logger.Error("GetVirtualMachines: SKU API List() failed", map[string]interface{}{
+			"error":    err.Error(),
+			"elapsed":  time.Since(startTime).String(),
+		})
 		return nil, err
 	}
+
+	logger.Info("GetVirtualMachines: SKU API List() returned", map[string]interface{}{
+		"elapsed":     time.Since(startTime).String(),
+		"notDone":     skusResultPage.NotDone(),
+		"hasNextLink": skusResultPage.Response().NextLink != nil && len(*skusResultPage.Response().NextLink) > 0,
+	})
 
 	var virtualMachines []types.VMInfo
 	totalSKUs := 0
 	totalPages := 0
 	resourceTypeCounts := make(map[string]int)
 	regionMatchCount := 0
+	vmSampleNames := make([]string, 0, 20)
 
 	// Iterate through ALL pages of SKU results
 	for ; skusResultPage.NotDone(); err = skusResultPage.NextWithContext(context.Background()) {
 		if err != nil {
 			logger.Error("GetVirtualMachines: error fetching next SKU page", map[string]interface{}{
-				"page":  totalPages,
-				"error": err.Error(),
+				"page":    totalPages,
+				"error":   err.Error(),
+				"elapsed": time.Since(startTime).String(),
 			})
 			break
 		}
@@ -630,6 +644,19 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 		totalPages++
 		totalSKUs += len(pageSkus)
 
+		// Check if there's a next page
+		resp := skusResultPage.Response()
+		hasNext := resp.NextLink != nil && len(*resp.NextLink) > 0
+
+		// Log per-page details
+		logger.Info("GetVirtualMachines: processing page", map[string]interface{}{
+			"page":        totalPages,
+			"pageSKUs":    len(pageSkus),
+			"hasNextLink": hasNext,
+			"elapsed":     time.Since(startTime).String(),
+		})
+
+		pageVMsInRegion := 0
 		for _, sku := range pageSkus {
 			if sku.ResourceType != nil {
 				resourceTypeCounts[*sku.ResourceType]++
@@ -647,6 +674,7 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 					continue
 				}
 
+				pageVMsInRegion++
 				var memory float64
 				var cpu float64
 				if sku.Capabilities != nil {
@@ -687,22 +715,35 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 					Zones:      *locationInfo.Zones,
 					Attributes: cloudinfo.Attributes(fmt.Sprint(cpu), fmt.Sprint(memory), types.NtwLow, category),
 				})
+
+				// Collect sample VM names (first 20)
+				if len(vmSampleNames) < 20 && sku.Name != nil {
+					vmSampleNames = append(vmSampleNames, *sku.Name)
+				}
 			}
 		}
+
+		logger.Info("GetVirtualMachines: page VMs found", map[string]interface{}{
+			"page":            totalPages,
+			"vmsInRegion":     pageVMsInRegion,
+			"totalVMsSoFar":   len(virtualMachines),
+		})
 	}
 
-	// Log top resource types for debugging
+	// Log resource type breakdown
 	topTypes := make([]string, 0, len(resourceTypeCounts))
 	for rt, count := range resourceTypeCounts {
 		topTypes = append(topTypes, fmt.Sprintf("%s=%d", rt, count))
 	}
 
 	logger.Info("GetVirtualMachines: complete", map[string]interface{}{
-		"totalPages":       totalPages,
-		"totalSKUs":        totalSKUs,
-		"regionMatchSKUs":  regionMatchCount,
-		"vmSKUs":           len(virtualMachines),
-		"resourceTypes":    fmt.Sprintf("%v", topTypes),
+		"totalPages":      totalPages,
+		"totalSKUs":       totalSKUs,
+		"regionMatchSKUs": regionMatchCount,
+		"vmSKUs":          len(virtualMachines),
+		"resourceTypes":   fmt.Sprintf("%v", topTypes),
+		"sampleVMs":       fmt.Sprintf("%v", vmSampleNames),
+		"elapsed":         time.Since(startTime).String(),
 	})
 	return virtualMachines, nil
 }
