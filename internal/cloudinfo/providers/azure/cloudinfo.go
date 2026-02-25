@@ -154,6 +154,18 @@ func NewAzureInfoer(config Config, logger cloudinfo.Logger) (*AzureInfoer, error
 	containerServiceClient := containerservice.NewContainerServicesClient(config.SubscriptionID)
 	containerServiceClient.Authorizer = authorizer
 
+	authSource := "clientCredentials"
+	if config.ClientID == "" {
+		authSource = "environment/file"
+	}
+
+	logger.Info("NewAzureInfoer: created", map[string]interface{}{
+		"subscriptionId": config.SubscriptionID,
+		"tenantId":       config.TenantID,
+		"clientId":       config.ClientID,
+		"authSource":     authSource,
+	})
+
 	return &AzureInfoer{
 		subscriptionId:      config.SubscriptionID,
 		subscriptionsClient: sClient,
@@ -576,7 +588,9 @@ func (a *AzureInfoer) addSuffix(mt string, suffixes ...string) []string {
 
 func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) {
 	logger := a.log.WithFields(map[string]interface{}{"region": region})
-	logger.Debug("getting product info")
+	logger.Info("GetVirtualMachines: starting", map[string]interface{}{
+		"subscriptionId": a.subscriptionId,
+	})
 
 	skusResultPage, err := a.skusClient.List(context.Background())
 	if err != nil {
@@ -584,14 +598,49 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 	}
 
 	var virtualMachines []types.VMInfo
+	totalSKUs := 0
+	totalPages := 0
+	resourceTypeCounts := make(map[string]int)
+	regionMatchCount := 0
 
-	for _, sku := range skusResultPage.Values() {
-		for _, locationInfo := range *sku.LocationInfo {
-			if strings.ToLower(*locationInfo.Location) == region {
-				if *sku.ResourceType == "virtualMachines" {
-					var memory float64
-					var cpu float64
+	// Iterate through ALL pages of SKU results
+	for ; skusResultPage.NotDone(); err = skusResultPage.NextWithContext(context.Background()) {
+		if err != nil {
+			logger.Error("GetVirtualMachines: error fetching next SKU page", map[string]interface{}{
+				"page":  totalPages,
+				"error": err.Error(),
+			})
+			break
+		}
+
+		pageSkus := skusResultPage.Values()
+		totalPages++
+		totalSKUs += len(pageSkus)
+
+		for _, sku := range pageSkus {
+			if sku.ResourceType != nil {
+				resourceTypeCounts[*sku.ResourceType]++
+			}
+
+			if sku.LocationInfo == nil {
+				continue
+			}
+			for _, locationInfo := range *sku.LocationInfo {
+				if locationInfo.Location == nil || strings.ToLower(*locationInfo.Location) != region {
+					continue
+				}
+				regionMatchCount++
+				if sku.ResourceType == nil || *sku.ResourceType != "virtualMachines" {
+					continue
+				}
+
+				var memory float64
+				var cpu float64
+				if sku.Capabilities != nil {
 					for _, capabilities := range *sku.Capabilities {
+						if capabilities.Name == nil || capabilities.Value == nil {
+							continue
+						}
 						switch *capabilities.Name {
 						case "MemoryGB":
 							memory, err = strconv.ParseFloat(*capabilities.Value, 64)
@@ -607,29 +656,41 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 							}
 						}
 					}
-					category, err := a.mapCategory(*sku.Family)
-					if err != nil {
-						logger.Debug(emperror.Wrap(err, "failed to get virtual machine category").Error(),
-							map[string]interface{}{"instanceType": *sku.Name})
-					}
-
-					virtualMachines = append(virtualMachines, types.VMInfo{
-						Category:   category,
-						Series:     a.mapSeries(*sku.Family),
-						Type:       *sku.Name,
-						Mem:        memory,
-						Cpus:       cpu,
-						NtwPerf:    "1 Gbit/s",
-						NtwPerfCat: types.NtwLow,
-						Zones:      *locationInfo.Zones,
-						Attributes: cloudinfo.Attributes(fmt.Sprint(cpu), fmt.Sprint(memory), types.NtwLow, category),
-					})
 				}
+				category, err := a.mapCategory(*sku.Family)
+				if err != nil {
+					logger.Debug(emperror.Wrap(err, "failed to get virtual machine category").Error(),
+						map[string]interface{}{"instanceType": *sku.Name})
+				}
+
+				virtualMachines = append(virtualMachines, types.VMInfo{
+					Category:   category,
+					Series:     a.mapSeries(*sku.Family),
+					Type:       *sku.Name,
+					Mem:        memory,
+					Cpus:       cpu,
+					NtwPerf:    "1 Gbit/s",
+					NtwPerfCat: types.NtwLow,
+					Zones:      *locationInfo.Zones,
+					Attributes: cloudinfo.Attributes(fmt.Sprint(cpu), fmt.Sprint(memory), types.NtwLow, category),
+				})
 			}
 		}
 	}
 
-	logger.Debug("found virtual machines", map[string]interface{}{"numberOfVms": len(virtualMachines)})
+	// Log top resource types for debugging
+	topTypes := make([]string, 0, len(resourceTypeCounts))
+	for rt, count := range resourceTypeCounts {
+		topTypes = append(topTypes, fmt.Sprintf("%s=%d", rt, count))
+	}
+
+	logger.Info("GetVirtualMachines: complete", map[string]interface{}{
+		"totalPages":       totalPages,
+		"totalSKUs":        totalSKUs,
+		"regionMatchSKUs":  regionMatchCount,
+		"vmSKUs":           len(virtualMachines),
+		"resourceTypes":    fmt.Sprintf("%v", topTypes),
+	})
 	return virtualMachines, nil
 }
 
