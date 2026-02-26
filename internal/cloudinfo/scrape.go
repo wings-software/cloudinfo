@@ -79,12 +79,7 @@ func (sm *scrapingManager) scrapeServiceRegionProducts(ctx context.Context, serv
 	logger := log.WithFields(sm.log, map[string]interface{}{"service": service, "region": regionId})
 
 	logger.Debug("retrieving regional product information")
-	vms, ok := sm.store.GetVm(sm.provider, service, regionId)
-	if !ok {
-		logger.Debug("VMs not yet cached, proceeding to scraping them...")
-	}
-
-	values, err := sm.infoer.GetProducts(vms, service, regionId)
+	values, err := sm.infoer.GetProducts(nil, service, regionId)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve products for region")
 	}
