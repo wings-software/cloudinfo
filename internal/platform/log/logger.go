@@ -36,16 +36,23 @@ func NewLogger(config Config) logur.Logger {
 		EnvironmentOverrideColors: true,
 	})
 
+	// Also configure the global logrus logger to write to stdout
+	// so that middleware and other code using logrus.WithFields() directly
+	// writes to stdout instead of the default stderr.
+	logrus.SetOutput(os.Stdout)
+
 	switch config.Format {
 	case "logfmt":
 		// Already the default
 
 	case "json":
 		logger.SetFormatter(&logrus.JSONFormatter{})
+		logrus.SetFormatter(&logrus.JSONFormatter{})
 	}
 
 	if level, err := logrus.ParseLevel(config.Level); err == nil {
 		logger.SetLevel(level)
+		logrus.SetLevel(level)
 	}
 
 	return logrusadapter.New(logger)
