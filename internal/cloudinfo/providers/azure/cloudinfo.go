@@ -240,9 +240,9 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 	totalOnDemandSet := 0
 	totalSpotSet := 0
 
+	client := &http.Client{}
 	url := baseURL
 	for url != "" {
-		client := &http.Client{}
 		req, _ := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "go-client")
 
@@ -255,10 +255,10 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 			})
 			return allPrices, fmt.Errorf("failed to call retail API: %w", err)
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
 			a.log.Error("RetailPricesAPI: non-200 status", map[string]interface{}{
 				"statusCode":  resp.StatusCode,
 				"page":        pageCount,
@@ -269,6 +269,7 @@ func (a *AzureInfoer) getPricingWithRetailPricesAPI() (map[string]map[string]typ
 		}
 
 		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
 		if err != nil {
 			return allPrices, fmt.Errorf("error while getting body %w", err)
 		}
@@ -584,8 +585,8 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 	skusResultPage, err := a.skusClient.List(context.Background())
 	if err != nil {
 		logger.Error("GetVirtualMachines: SKU API List() failed", map[string]interface{}{
-			"error":    err.Error(),
-			"elapsed":  time.Since(startTime).String(),
+			"error":   err.Error(),
+			"elapsed": time.Since(startTime).String(),
 		})
 		return nil, err
 	}
@@ -698,9 +699,9 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 		}
 
 		logger.Info("GetVirtualMachines: page VMs found", map[string]interface{}{
-			"page":            totalPages,
-			"vmsInRegion":     pageVMsInRegion,
-			"totalVMsSoFar":   len(virtualMachines),
+			"page":          totalPages,
+			"vmsInRegion":   pageVMsInRegion,
+			"totalVMsSoFar": len(virtualMachines),
 		})
 	}
 
