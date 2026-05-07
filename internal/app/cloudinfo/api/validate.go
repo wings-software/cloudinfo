@@ -63,11 +63,11 @@ func regionValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Fun
 			return false
 		}
 
-		logger = logger.WithFields(map[string]interface{}{"provider": regionPathParams.Provider, "service": regionPathParams.Service, "region": regionPathParams.Region})
+		l := logger.WithFields(map[string]interface{}{"provider": regionPathParams.Provider, "service": regionPathParams.Service, "region": regionPathParams.Region})
 
 		regions, err := cpi.GetRegions(regionPathParams.Provider, regionPathParams.Service)
 		if err != nil {
-			logger.Error("validation failed, could not retrieve regions")
+			l.Error("validation failed, could not retrieve regions")
 			return false
 		}
 
@@ -100,11 +100,11 @@ func serviceValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Fu
 			return false
 		}
 
-		logger = logger.WithFields(map[string]interface{}{"provider": servicesPathParams.Provider, "service": servicesPathParams.Service})
+		l := logger.WithFields(map[string]interface{}{"provider": servicesPathParams.Provider, "service": servicesPathParams.Service})
 
 		services, err := cpi.GetServices(servicesPathParams.Provider)
 		if err != nil {
-			logger.Error("validation failed, could not retrieve services")
+			l.Error("validation failed, could not retrieve services")
 			return false
 		}
 
