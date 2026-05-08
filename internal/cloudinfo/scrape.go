@@ -250,8 +250,6 @@ func (sm *scrapingManager) scrapeServiceInformation(ctx context.Context) {
 
 	err := sm.scrapeServiceRegionInfo(ctx, storedServices)
 	if err != nil {
-		sm.log.Error("failed to load service region information")
-		sm.errorHandler.Handle(err)
 		return
 	}
 
@@ -266,8 +264,7 @@ func (sm *scrapingManager) scrapePricesInRegion(ctx context.Context, region stri
 	prices, err := sm.infoer.GetCurrentPrices(region)
 	if err != nil {
 		sm.metrics.ReportScrapeShortLivedFailure(sm.provider, region)
-		sm.log.Error("failed to scrape spot prices in region")
-		sm.errorHandler.Handle(err)
+		sm.log.WithFields(map[string]interface{}{"error": err, "provider": sm.provider, "region": region}).Error("failed to scrape spot prices in region")
 	}
 
 	for instType, price := range prices {
@@ -288,8 +285,7 @@ func (sm *scrapingManager) scrapePricesInAllRegions(ctx context.Context) {
 	start := time.Now()
 	regions, err := sm.infoer.GetRegions("compute")
 	if err != nil {
-		sm.log.Error("failed to retrieve regions")
-		sm.errorHandler.Handle(err)
+		sm.log.WithFields(map[string]interface{}{"error": err, "provider": sm.provider}).Error("failed to retrieve regions")
 	}
 
 	for regionId := range regions {

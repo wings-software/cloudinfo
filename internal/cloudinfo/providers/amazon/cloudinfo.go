@@ -39,8 +39,9 @@ import (
 )
 
 const (
-	svcEks = "eks"
-	svcPKE = "pke"
+	svcEks           = "eks"
+	svcPKE           = "pke"
+	restrictedRegion = "me-south-1"
 )
 
 // Ec2Infoer encapsulates the data and operations needed to access external resources
@@ -512,6 +513,10 @@ func (e *Ec2Infoer) getCurrentSpotPrices(region string) (map[string]types.SpotPr
 
 // GetCurrentPrices returns the current spot prices of every instance type in every availability zone in a given region
 func (e *Ec2Infoer) GetCurrentPrices(region string) (map[string]types.Price, error) {
+	if region == restrictedRegion {
+		log.WithFields(e.log, map[string]any{"region": region}).Info("skipping region due to connectivity restrictions")
+		return nil, nil
+	}
 	logger := log.WithFields(e.log, map[string]interface{}{"region": region})
 	var spotPrices map[string]types.SpotPriceInfo
 	var err error
@@ -526,7 +531,6 @@ func (e *Ec2Infoer) GetCurrentPrices(region string) (map[string]types.Price, err
 		logger.Debug("getting current spot prices directly from the AWS API")
 		spotPrices, err = e.getCurrentSpotPrices(region)
 		if err != nil {
-			logger.Error("failed to retrieve current spot prices")
 			return nil, err
 		}
 	}
