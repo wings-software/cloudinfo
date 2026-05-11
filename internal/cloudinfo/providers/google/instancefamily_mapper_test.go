@@ -25,11 +25,12 @@ import (
 
 func TestGoogleInfoer_mapSeries(t *testing.T) {
 	familySeriesMap := map[string]string{
-		"n2-highmem-2":       "n2",
-		"e2-micro":           "e2",
-		"n2d-standard-8":     "n2d",
-		"c4a-highmem-8-lssd": "c4a",
-		"unidentifiedType":   "unidentifiedType",
+		"n2-highmem-2":              "n2",
+		"e2-micro":                  "e2",
+		"n2d-standard-8":            "n2d",
+		"c4a-highmem-8-lssd":        "c4a",
+		"c4-highmem-288-lssd-metal": "c4",
+		"unidentifiedType":          "unidentifiedType",
 	}
 
 	gceInfoer := GceInfoer{log: cloudinfoadapter.NewLogger(&logur.TestLogger{})}
