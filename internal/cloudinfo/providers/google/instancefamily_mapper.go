@@ -25,7 +25,7 @@ import (
 func (g *GceInfoer) mapSeries(instanceType string) string {
 	instanceTypeParts := strings.Split(instanceType, "-")
 
-	if len(instanceTypeParts) >= 2 && len(instanceTypeParts) <= 4 {
+	if len(instanceTypeParts) >= 2 && len(instanceTypeParts) <= 5 {
 		return instanceTypeParts[0]
 	}
 
