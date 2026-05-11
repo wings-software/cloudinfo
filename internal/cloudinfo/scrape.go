@@ -30,6 +30,11 @@ import (
 	"github.com/banzaicloud/cloudinfo/internal/platform/log"
 )
 
+const (
+	restrictedRegion      = "me-south-1"
+	restrictedRegionError = "skipping region due to connectivity restrictions"
+)
+
 // scrapingManager manages data renewal for a given provider
 // retrieves data from the cloud provider and stores it in the store
 type scrapingManager struct {
@@ -105,6 +110,10 @@ func (sm *scrapingManager) scrapeServiceRegionProducts(ctx context.Context, serv
 }
 
 func (sm *scrapingManager) scrapeServiceRegionImages(ctx context.Context, service string, regionId string) error {
+	if regionId == restrictedRegion {
+		sm.log.WithFields(map[string]any{"service": service, "region": regionId}).Info(restrictedRegionError)
+		return nil
+	}
 	if sm.infoer.HasImages() {
 		sm.log.Debug("retrieving regional image information", map[string]interface{}{"service": service, "region": regionId})
 		images, err := sm.infoer.GetServiceImages(service, regionId)
@@ -119,6 +128,10 @@ func (sm *scrapingManager) scrapeServiceRegionImages(ctx context.Context, servic
 }
 
 func (sm *scrapingManager) scrapeServiceRegionVersions(ctx context.Context, service string, regionId string) error {
+	if regionId == restrictedRegion {
+		sm.log.WithFields(map[string]any{"service": service, "region": regionId}).Info(restrictedRegionError)
+		return nil
+	}
 	versions, err := sm.infoer.GetVersions(service, regionId)
 	if err != nil {
 		return errors.WrapIf(err, "failed to retrieve service versions for region")
@@ -131,6 +144,10 @@ func (sm *scrapingManager) scrapeServiceRegionVersions(ctx context.Context, serv
 }
 
 func (sm *scrapingManager) scrapeServiceRegionZones(ctx context.Context, service, region string) error {
+	if region == restrictedRegion {
+		sm.log.WithFields(map[string]any{"service": service, "region": region}).Info(restrictedRegionError)
+		return nil
+	}
 	zones, err := sm.infoer.GetZones(region)
 	if err != nil {
 		return errors.WrapIf(err, "failed to retrieve zones for region")
