@@ -142,8 +142,14 @@ func (cpi *cloudInfo) GetProductDetails(provider, service, region string) ([]typ
 			cpi.log.Debug("price info not yet cached", map[string]interface{}{"instanceType": vm.Type})
 		}
 
+		validZones := make(map[string]struct{}, len(vm.Zones))
+		for _, z := range vm.Zones {
+			validZones[z] = struct{}{}
+		}
 		for zone, price := range cachedVal.SpotPrice {
-			pd.SpotPrice = append(pd.SpotPrice, *types.NewZonePrice(zone, price))
+			if _, ok := validZones[zone]; len(vm.Zones) == 0 || ok {
+				pd.SpotPrice = append(pd.SpotPrice, *types.NewZonePrice(zone, price))
+			}
 		}
 
 		details = append(details, *pd)
@@ -170,8 +176,14 @@ func (cpi *cloudInfo) GetProductDetail(provider, service, region string, product
 			cpi.log.Debug("price info not yet cached", map[string]interface{}{"instanceType": vm.Type})
 		}
 
+		validZones := make(map[string]struct{}, len(vm.Zones))
+		for _, z := range vm.Zones {
+			validZones[z] = struct{}{}
+		}
 		for zone, price := range cachedVal.SpotPrice {
-			pd.SpotPrice = append(pd.SpotPrice, *types.NewZonePrice(zone, price))
+			if _, ok := validZones[zone]; len(vm.Zones) == 0 || ok {
+				pd.SpotPrice = append(pd.SpotPrice, *types.NewZonePrice(zone, price))
+			}
 		}
 		return *pd, nil
 	}
