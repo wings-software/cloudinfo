@@ -446,52 +446,61 @@ func (g *GceInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) {
 	logger := log.WithFields(g.log, map[string]interface{}{"region": region})
 	logger.Debug("retrieving product information")
 	var vmsMap = make(map[string]types.VMInfo)
+	vmZones := make(map[string][]string)
 	var ntwPerf uint
 
 	zones, err := g.GetZones(region)
 	if err != nil {
 		return nil, err
 	}
-	err = g.computeSvc.MachineTypes.List(g.projectId, zones[0]).Pages(context.TODO(), func(allMts *compute.MachineTypeList) error {
-		for _, mt := range allMts.Items {
-			if _, ok := vmsMap[mt.Name]; !ok {
-				switch {
-				case mt.GuestCpus < 1:
-					// minimum 1 Gbps network performance for each virtual machine
-					ntwPerf = 1
-				case mt.GuestCpus > 8:
-					// theoretical maximum of 16 Gbps for each virtual machine
-					ntwPerf = 16
-				default:
-					// each vCPU has a 2 Gbps egress cap for peak performance
-					ntwPerf = uint(mt.GuestCpus * 2)
-				}
-				ntwMapper := newGceNetworkMapper()
-				ntwPerfCat, err := ntwMapper.MapNetworkPerf(fmt.Sprint(ntwPerf, " Gbit/s"))
-				if err != nil {
-					logger.Debug(emperror.Wrap(err, "failed to get network performance category").Error(),
-						map[string]interface{}{"instanceType": mt.Name})
-				}
-				vmsMap[mt.Name] = types.VMInfo{
-					Category:   g.getCategory(mt.Name),
-					Series:     g.mapSeries(mt.Name),
-					Type:       mt.Name,
-					Cpus:       float64(mt.GuestCpus),
-					Mem:        float64(mt.MemoryMb) / 1024,
-					NtwPerf:    fmt.Sprintf("%d Gbit/s", ntwPerf),
-					NtwPerfCat: ntwPerfCat,
-					Zones:      zones,
-					Attributes: cloudinfo.Attributes(fmt.Sprint(mt.GuestCpus), fmt.Sprint(float64(mt.MemoryMb)/1024), ntwPerfCat, g.getCategory(mt.Name)),
+	for _, zone := range zones {
+		err = g.computeSvc.MachineTypes.List(g.projectId, zone).Pages(context.TODO(), func(allMts *compute.MachineTypeList) error {
+			for _, mt := range allMts.Items {
+				vmZones[mt.Name] = append(vmZones[mt.Name], zone)
+				if _, ok := vmsMap[mt.Name]; !ok {
+					switch {
+					case mt.GuestCpus < 1:
+						// minimum 1 Gbps network performance for each virtual machine
+						ntwPerf = 1
+					case mt.GuestCpus > 8:
+						// theoretical maximum of 16 Gbps for each virtual machine
+						ntwPerf = 16
+					default:
+						// each vCPU has a 2 Gbps egress cap for peak performance
+						ntwPerf = uint(mt.GuestCpus * 2)
+					}
+					ntwMapper := newGceNetworkMapper()
+					ntwPerfCat, err := ntwMapper.MapNetworkPerf(fmt.Sprint(ntwPerf, " Gbit/s"))
+					if err != nil {
+						logger.Debug(emperror.Wrap(err, "failed to get network performance category").Error(),
+							map[string]interface{}{"instanceType": mt.Name})
+					}
+					var gpus float64
+					for _, acc := range mt.Accelerators {
+						gpus += float64(acc.GuestAcceleratorCount)
+					}
+					vmsMap[mt.Name] = types.VMInfo{
+						Category:   g.getCategory(mt.Name),
+						Series:     g.mapSeries(mt.Name),
+						Type:       mt.Name,
+						Cpus:       float64(mt.GuestCpus),
+						Mem:        float64(mt.MemoryMb) / 1024,
+						Gpus:       gpus,
+						NtwPerf:    fmt.Sprintf("%d Gbit/s", ntwPerf),
+						NtwPerfCat: ntwPerfCat,
+						Attributes: cloudinfo.Attributes(fmt.Sprint(mt.GuestCpus), fmt.Sprint(float64(mt.MemoryMb)/1024), ntwPerfCat, g.getCategory(mt.Name)),
+					}
 				}
 			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 	var vms []types.VMInfo
-	for _, vm := range vmsMap {
+	for name, vm := range vmsMap {
+		vm.Zones = vmZones[name]
 		vms = append(vms, vm)
 	}
 	logger.Debug("found virtual machines", map[string]interface{}{"vms": len(vms)})
@@ -504,6 +513,8 @@ func (g *GceInfoer) getCategory(name string) string {
 		return types.CategoryMemory
 	case strings.Contains(name, "highcpu"):
 		return types.CategoryCompute
+	case strings.Contains(name, "highgpu"):
+		return types.CategoryGpu
 	default:
 		return types.CategoryGeneral
 	}
