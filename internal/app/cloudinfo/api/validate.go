@@ -34,12 +34,12 @@ func ConfigureValidator(providers []string, ci types.CloudInfo, logger cloudinfo
 	}
 
 	// register validator for the service parameter in the request path
-	if err := v.RegisterValidation("service", serviceValidator(ci, logger)); err != nil {
+	if err := v.RegisterValidation("service", serviceValidator(providers, ci, logger)); err != nil {
 		return errors.Wrap(err, "could not register service validator")
 	}
 
 	// register validator for the region parameter in the request path
-	if err := v.RegisterValidation("region", regionValidator(ci, logger)); err != nil {
+	if err := v.RegisterValidation("region", regionValidator(providers, ci, logger)); err != nil {
 		return errors.Wrap(err, "could not register region validator")
 	}
 
@@ -52,7 +52,7 @@ func ConfigureValidator(providers []string, ci types.CloudInfo, logger cloudinfo
 }
 
 // regionValidator validates the `region` path parameter
-func regionValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Func {
+func regionValidator(providers []string, cpi types.CloudInfo, logger cloudinfo.Logger) validator.Func {
 	return func(fl validator.FieldLevel) bool {
 		currentStruct, _, _, ok := fl.GetStructFieldOK2()
 		if !ok {
@@ -65,9 +65,14 @@ func regionValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Fun
 
 		l := logger.WithFields(map[string]interface{}{"provider": regionPathParams.Provider, "service": regionPathParams.Service, "region": regionPathParams.Region})
 
+		if !isSupportedProvider(providers, regionPathParams.Provider) {
+			l.Warn("validation failed, unsupported provider")
+			return false
+		}
+
 		regions, err := cpi.GetRegions(regionPathParams.Provider, regionPathParams.Service)
 		if err != nil {
-			l.Error("validation failed, could not retrieve regions")
+			l.Warn("validation failed, could not retrieve regions")
 			return false
 		}
 
@@ -89,7 +94,7 @@ func productValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Fu
 }
 
 // serviceValidator validates the `service` path parameter
-func serviceValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Func {
+func serviceValidator(providers []string, cpi types.CloudInfo, logger cloudinfo.Logger) validator.Func {
 	return func(fl validator.FieldLevel) bool {
 		currentStruct, _, _, ok := fl.GetStructFieldOK2()
 		if !ok {
@@ -102,9 +107,14 @@ func serviceValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Fu
 
 		l := logger.WithFields(map[string]interface{}{"provider": servicesPathParams.Provider, "service": servicesPathParams.Service})
 
+		if !isSupportedProvider(providers, servicesPathParams.Provider) {
+			l.Warn("validation failed, unsupported provider")
+			return false
+		}
+
 		services, err := cpi.GetServices(servicesPathParams.Provider)
 		if err != nil {
-			l.Error("validation failed, could not retrieve services")
+			l.Warn("validation failed, could not retrieve services")
 			return false
 		}
 
@@ -120,13 +130,17 @@ func serviceValidator(cpi types.CloudInfo, logger cloudinfo.Logger) validator.Fu
 // providerValidator validates the `provider` path parameter
 func providerValidator(providers []string) validator.Func {
 	return func(fl validator.FieldLevel) bool {
-		for _, p := range providers {
-			if fl.Field().String() == p {
-				return true
-			}
-		}
-		return false
+		return isSupportedProvider(providers, fl.Field().String())
 	}
+}
+
+func isSupportedProvider(providers []string, provider string) bool {
+	for _, p := range providers {
+		if p == provider {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidatePathData explicitly calls validation on the parsed path data structs
