@@ -261,12 +261,18 @@ func (sm *scrapingManager) scrapeServiceInformation(ctx context.Context) {
 	storedServices, ok := sm.store.GetServices(sm.provider)
 	if !ok {
 		sm.metrics.ReportScrapeFailure(sm.provider, "N/A", "N/A")
-		sm.log.Error("failed to retrieve services")
+		sm.log.Error("failed to retrieve services", map[string]interface{}{
+			"provider": sm.provider,
+		})
 		return
 	}
 
 	err := sm.scrapeServiceRegionInfo(ctx, storedServices)
 	if err != nil {
+		sm.log.Error("failed to scrape service region information", map[string]interface{}{
+			"provider": sm.provider,
+			"error":    err.Error(),
+		})
 		return
 	}
 

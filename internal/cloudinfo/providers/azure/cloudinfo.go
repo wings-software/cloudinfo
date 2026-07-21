@@ -346,7 +346,9 @@ func (a *AzureInfoer) Initialize() (map[string]map[string]types.Price, error) {
 	a.log.Debug("initializing price info")
 	allPrices, err := a.getPricingWithRetailPricesAPI()
 	if err != nil {
-		a.log.Error(fmt.Sprintf("error while fetching azure prices with retail prices API %v", err))
+		a.log.Error("error while fetching azure prices with retail prices API", map[string]interface{}{
+			"error": err.Error(),
+		})
 		allPrices = make(map[string]map[string]types.Price)
 	}
 
@@ -648,6 +650,12 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 				if sku.ResourceType == nil || *sku.ResourceType != "virtualMachines" {
 					continue
 				}
+				if sku.Name == nil {
+					continue
+				}
+				if sku.Family == nil {
+					continue
+				}
 
 				pageVMsInRegion++
 				var memory float64
@@ -661,13 +669,21 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 						case "MemoryGB":
 							memory, err = strconv.ParseFloat(*capabilities.Value, 64)
 							if err != nil {
-								logger.Error("couldn't parse memory")
+								logger.Error("couldn't parse memory", map[string]interface{}{
+									"error":        err.Error(),
+									"value":        *capabilities.Value,
+									"instanceType": *sku.Name,
+								})
 								continue
 							}
 						case "vCPUs":
 							cpu, err = strconv.ParseFloat(*capabilities.Value, 64)
 							if err != nil {
-								logger.Error("couldn't parse cpu")
+								logger.Error("couldn't parse cpu", map[string]interface{}{
+									"error":        err.Error(),
+									"value":        *capabilities.Value,
+									"instanceType": *sku.Name,
+								})
 								continue
 							}
 						}
@@ -679,6 +695,11 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 						map[string]interface{}{"instanceType": *sku.Name})
 				}
 
+				zones := []string{}
+				if locationInfo.Zones != nil {
+					zones = *locationInfo.Zones
+				}
+
 				virtualMachines = append(virtualMachines, types.VMInfo{
 					Category:   category,
 					Series:     a.mapSeries(*sku.Family),
@@ -687,12 +708,12 @@ func (a *AzureInfoer) GetVirtualMachines(region string) ([]types.VMInfo, error) 
 					Cpus:       cpu,
 					NtwPerf:    "1 Gbit/s",
 					NtwPerfCat: types.NtwLow,
-					Zones:      *locationInfo.Zones,
+					Zones:      zones,
 					Attributes: cloudinfo.Attributes(fmt.Sprint(cpu), fmt.Sprint(memory), types.NtwLow, category),
 				})
 
 				// Collect sample VM names (first 20)
-				if len(vmSampleNames) < 20 && sku.Name != nil {
+				if len(vmSampleNames) < 20 {
 					vmSampleNames = append(vmSampleNames, *sku.Name)
 				}
 			}
@@ -730,7 +751,10 @@ func (a *AzureInfoer) GetProducts(vms []types.VMInfo, service, regionId string) 
 		var err error
 		vmList, err = a.GetVirtualMachines(regionId)
 		if err != nil {
-			a.log.Warn("could not get machine types for region", map[string]interface{}{"regionId": regionId})
+			a.log.Warn("could not get machine types for region", map[string]interface{}{
+				"regionId": regionId,
+				"error":    err.Error(),
+			})
 			return nil, emperror.Wrap(err, "failed to get products")
 		}
 	}
@@ -769,6 +793,10 @@ func (a *AzureInfoer) GetZones(region string) ([]string, error) {
 
 	skusResultPage, err := a.skusClient.List(context.Background())
 	if err != nil {
+		logger.Error("failed to retrieve azure zones", map[string]interface{}{
+			"error":  err.Error(),
+			"region": region,
+		})
 		return nil, err
 	}
 
@@ -776,12 +804,19 @@ func (a *AzureInfoer) GetZones(region string) ([]string, error) {
 	zones := make([]string, 0)
 
 	for _, sku := range skusResultPage.Values() {
+		if sku.LocationInfo == nil {
+			continue
+		}
 		for _, locationInfo := range *sku.LocationInfo {
-			if strings.ToLower(*locationInfo.Location) == region {
-				// retrieve zones per instance type
-				for _, zone := range *locationInfo.Zones {
-					zonesMap[zone] = ""
-				}
+			if locationInfo.Location == nil || strings.ToLower(*locationInfo.Location) != region {
+				continue
+			}
+			if locationInfo.Zones == nil {
+				continue
+			}
+			// retrieve zones per instance type
+			for _, zone := range *locationInfo.Zones {
+				zonesMap[zone] = ""
 			}
 		}
 	}
@@ -804,14 +839,22 @@ func (a *AzureInfoer) GetRegions(service string) (map[string]string, error) {
 	supLocations := make(map[string]string)
 
 	// retrieve all locations for the subscription id (some of them may not be supported by the required provider)
-	if locations, err := a.subscriptionsClient.ListLocations(context.TODO(), a.subscriptionId); err == nil {
-		// fill up the map: DisplayName - > Name
+	locations, err := a.subscriptionsClient.ListLocations(context.TODO(), a.subscriptionId)
+	if err != nil {
+		logger.Error("failed to retrieve azure locations", map[string]interface{}{
+			"error":          err.Error(),
+			"subscriptionId": a.subscriptionId,
+		})
+		return nil, err
+	}
+	// fill up the map: DisplayName - > Name
+	if locations.Value != nil {
 		for _, loc := range *locations.Value {
+			if loc.DisplayName == nil || loc.Name == nil {
+				continue
+			}
 			allLocations[*loc.DisplayName] = *loc.Name
 		}
-	} else {
-		logger.Error("error while retrieving azure locations")
-		return nil, err
 	}
 
 	// identify supported locations for the namespace and resource type
@@ -824,43 +867,57 @@ func (a *AzureInfoer) GetRegions(service string) (map[string]string, error) {
 
 	switch service {
 	case "aks":
-		if providers, err := a.providersClient.Get(context.TODO(), providerNamespaceForAks, ""); err == nil {
-			for _, pr := range *providers.ResourceTypes {
-				if *pr.ResourceType == resourceTypeForAks {
-					for _, displName := range *pr.Locations {
-						if loc, ok := allLocations[displName]; ok {
-							supLocations[loc] = displName
-						} else {
-							logger.Debug("unsupported location", map[string]interface{}{"name": loc, "displayname": displName})
-						}
-					}
-					break
+		providers, err := a.providersClient.Get(context.TODO(), providerNamespaceForAks, "")
+		if err != nil {
+			logger.Error("failed to retrieve supported locations", map[string]interface{}{
+				"resource": resourceTypeForAks,
+				"error":    err.Error(),
+			})
+			return nil, err
+		}
+		if providers.ResourceTypes == nil {
+			return supLocations, nil
+		}
+		for _, pr := range *providers.ResourceTypes {
+			if pr.ResourceType == nil || pr.Locations == nil || *pr.ResourceType != resourceTypeForAks {
+				continue
+			}
+			for _, displName := range *pr.Locations {
+				if loc, ok := allLocations[displName]; ok {
+					supLocations[loc] = displName
+				} else {
+					logger.Debug("unsupported location", map[string]interface{}{"name": loc, "displayname": displName})
 				}
 			}
-		} else {
-			logger.Error("failed to retrieve supported locations", map[string]interface{}{"resource": resourceTypeForAks})
-			return nil, err
+			break
 		}
 
 		logger.Debug("found supported locations", map[string]interface{}{"numberOfLocations": len(supLocations)})
 		return supLocations, nil
 	default:
-		if providers, err := a.providersClient.Get(context.TODO(), providerNamespaceForCompute, ""); err == nil {
-			for _, pr := range *providers.ResourceTypes {
-				if *pr.ResourceType == resourceTypeForCompute {
-					for _, displName := range *pr.Locations {
-						if loc, ok := allLocations[displName]; ok {
-							supLocations[loc] = displName
-						} else {
-							logger.Debug("unsupported location", map[string]interface{}{"name": loc, "displayname": displName})
-						}
-					}
-					break
+		providers, err := a.providersClient.Get(context.TODO(), providerNamespaceForCompute, "")
+		if err != nil {
+			logger.Error("failed to retrieve supported locations", map[string]interface{}{
+				"resource": resourceTypeForCompute,
+				"error":    err.Error(),
+			})
+			return nil, err
+		}
+		if providers.ResourceTypes == nil {
+			return supLocations, nil
+		}
+		for _, pr := range *providers.ResourceTypes {
+			if pr.ResourceType == nil || pr.Locations == nil || *pr.ResourceType != resourceTypeForCompute {
+				continue
+			}
+			for _, displName := range *pr.Locations {
+				if loc, ok := allLocations[displName]; ok {
+					supLocations[loc] = displName
+				} else {
+					logger.Debug("unsupported location", map[string]interface{}{"name": loc, "displayname": displName})
 				}
 			}
-		} else {
-			logger.Error("failed to retrieve supported locations", map[string]interface{}{"resource": resourceTypeForCompute})
-			return nil, err
+			break
 		}
 
 		logger.Debug("found supported locations", map[string]interface{}{"numberOfLocations": len(supLocations)})
@@ -902,17 +959,21 @@ func (a *AzureInfoer) GetVersions(service, region string) ([]types.LocationVersi
 		var def string
 		resp, err := a.containerSvcClient.ListOrchestrators(context.TODO(), region, resourceTypeForAks)
 		if err != nil {
+			a.log.Error("failed to retrieve aks versions", map[string]interface{}{
+				"error":  err.Error(),
+				"region": region,
+			})
 			return nil, err
 		}
 		if resp.OrchestratorVersionProfileProperties != nil && resp.OrchestratorVersionProfileProperties.Orchestrators != nil {
 			for _, v := range *resp.OrchestratorVersionProfileProperties.Orchestrators {
-				if v.OrchestratorType != nil && *v.OrchestratorType == string(containerservice.Kubernetes) {
-					if v.Default != nil {
-						def = *v.OrchestratorVersion
-					}
-
-					versions = append(versions, *v.OrchestratorVersion)
+				if v.OrchestratorType == nil || v.OrchestratorVersion == nil || *v.OrchestratorType != string(containerservice.Kubernetes) {
+					continue
 				}
+				if v.Default != nil {
+					def = *v.OrchestratorVersion
+				}
+				versions = append(versions, *v.OrchestratorVersion)
 			}
 		}
 		return []types.LocationVersion{types.NewLocationVersion(region, versions, def)}, nil

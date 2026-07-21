@@ -97,7 +97,9 @@ func NewAmazonInfoer(config Config, logger cloudinfo.Logger) (*Ec2Infoer, error)
 			Address: config.PrometheusAddress,
 		})
 		if err != nil {
-			logger.Error("failed to create Prometheus client, fallback to direct API access.")
+			logger.Error("failed to create Prometheus client, fallback to direct API access.", map[string]interface{}{
+				"error": err.Error(),
+			})
 			promApi = nil
 		} else {
 			promApi = v1.NewAPI(promClient)
@@ -140,18 +142,27 @@ func (e *Ec2Infoer) GetVirtualMachines(region string) ([]types.VMInfo, error) {
 	for i, price := range priceList {
 		pd, err := newPriceData(price)
 		if err != nil {
-			logger.Warn("could not extract pricing info", map[string]interface{}{"itemindex": i})
+			logger.Warn("could not extract pricing info", map[string]interface{}{
+				"itemindex": i,
+				"error":     err.Error(),
+			})
 			continue
 		}
 
 		instanceType, err := pd.getDataForKey("instanceType")
 		if err != nil {
-			logger.Warn("could not retrieve instance type", map[string]interface{}{"instancetype": instanceType})
+			logger.Warn("could not retrieve instance type", map[string]interface{}{
+				"instancetype": instanceType,
+				"error":        err.Error(),
+			})
 			continue
 		}
 		instanceFamily, err := pd.getDataForKey("instanceFamily")
 		if err != nil {
-			logger.Warn("could not retrieve instance family", map[string]interface{}{"instanceFamily": instanceFamily})
+			logger.Warn("could not retrieve instance family", map[string]interface{}{
+				"instanceFamily": instanceFamily,
+				"error":          err.Error(),
+			})
 		}
 		cpusStr, err := pd.getDataForKey("vcpu")
 		if err != nil {
@@ -226,7 +237,10 @@ func (e *Ec2Infoer) GetProducts(vms []types.VMInfo, service, regionId string) ([
 		var err error
 		vmList, err = e.GetVirtualMachines(regionId)
 		if err != nil {
-			e.log.Warn("could not get machine types for region", map[string]interface{}{"regionId": regionId})
+			e.log.Warn("could not get machine types for region", map[string]interface{}{
+				"regionId": regionId,
+				"error":    err.Error(),
+			})
 			return nil, errors.WrapIf(err, "failed to get products")
 		}
 	}
@@ -493,9 +507,16 @@ func (e *Ec2Infoer) getCurrentSpotPrices(region string) (map[string]types.SpotPr
 		ProductDescriptions: []*string{aws.String("Linux/UNIX")},
 	}, func(history *ec2.DescribeSpotPriceHistoryOutput, lastPage bool) bool {
 		for _, pe := range history.SpotPriceHistory {
+			if pe.SpotPrice == nil || pe.InstanceType == nil || pe.AvailabilityZone == nil {
+				continue
+			}
 			price, err := strconv.ParseFloat(*pe.SpotPrice, 64)
 			if err != nil {
-				logger.Error("couldn't parse spot price from history")
+				logger.Error("couldn't parse spot price from history", map[string]interface{}{
+					"error":        err.Error(),
+					"spotPrice":    *pe.SpotPrice,
+					"instanceType": *pe.InstanceType,
+				})
 				continue
 			}
 			if priceInfo[*pe.InstanceType] == nil {
@@ -523,7 +544,10 @@ func (e *Ec2Infoer) GetCurrentPrices(region string) (map[string]types.Price, err
 	if e.prometheus != nil {
 		spotPrices, err = e.getSpotPricesFromPrometheus(region)
 		if err != nil {
-			logger.Warn("could not get spot price info from Prometheus API, fallback to direct AWS API access.")
+			logger.Warn("could not get spot price info from Prometheus API, fallback to direct AWS API access.", map[string]interface{}{
+				"error":  err.Error(),
+				"region": region,
+			})
 		}
 	}
 

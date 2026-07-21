@@ -139,7 +139,7 @@ func (cis *cacheProductStore) GetStatus(provider string) (string, bool) {
 // Export writes the content of the store into the passed in writer
 func (cis *cacheProductStore) Export(w io.Writer) error {
 	if err := cis.Save(w); err != nil {
-		cis.log.Error("failed to export the store", map[string]interface{}{"op": "export", "destination": "todo"})
+		cis.log.Error("failed to export the store", map[string]interface{}{"op": "export", "error": err.Error()})
 		return emperror.WrapWith(err, "failed to export the store", "op", "export", "destination", "todo")
 	}
 	return nil
@@ -148,7 +148,7 @@ func (cis *cacheProductStore) Export(w io.Writer) error {
 // Import loads the store data from the standard input
 func (cis *cacheProductStore) Import(r io.Reader) error {
 	if err := cis.Load(r); err != nil {
-		cis.log.Error("failed to load store data", map[string]interface{}{"op": "import", "destination": "todo"})
+		cis.log.Error("failed to load store data", map[string]interface{}{"op": "import", "error": err.Error()})
 		return emperror.WrapWith(err, "failed to load the store data", "op", "import", "destination", "todo")
 	}
 	return nil

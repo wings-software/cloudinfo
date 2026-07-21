@@ -46,6 +46,7 @@ const (
 	GetRegionsError  = "could not get regions"
 	GetLocationError = "could not get location"
 	GetPriceError    = "could not get prices"
+	GetVersionsError = "could not get versions"
 )
 
 func (dps *testStruct) ListLocations(ctx context.Context, subscriptionID string) (result subscriptions.LocationListResult, err error) {
@@ -135,11 +136,21 @@ func (dps *test) Get(ctx context.Context, filter string) (result commerce.Resour
 }
 
 func (dps *testStruct) ListOrchestrators(ctx context.Context, location string, resourceType string) (result containerservice.OrchestratorVersionProfileListResult, err error) {
-	return containerservice.OrchestratorVersionProfileListResult{}, nil
+	switch dps.TcId {
+	case GetVersionsError:
+		return containerservice.OrchestratorVersionProfileListResult{}, errors.New(GetVersionsError)
+	default:
+		return containerservice.OrchestratorVersionProfileListResult{}, nil
+	}
 }
 
 func (dps *testStruct) List(ctx context.Context) (result skus.ResourceSkusResultPage, err error) {
-	return skus.ResourceSkusResultPage{}, nil
+	switch dps.TcId {
+	case GetVmsError:
+		return skus.ResourceSkusResultPage{}, errors.New(GetVmsError)
+	default:
+		return skus.ResourceSkusResultPage{}, nil
+	}
 }
 
 // strPointer gets the pointer to the passed string
@@ -703,4 +714,122 @@ func TestAzureInfoer_Initialize(t *testing.T) {
 			test.check(azureInfoer.Initialize())
 		})
 	}
+}
+
+func findLogEvent(t *testing.T, logger *logur.TestLogger, line string) logur.LogEvent {
+	t.Helper()
+	for _, event := range logger.Events() {
+		if event.Line == line {
+			return event
+		}
+	}
+	t.Fatalf("expected log event %q not found in %#v", line, logger.Events())
+	return logur.LogEvent{}
+}
+
+func TestAzureInfoer_GetRegions_logsErrorDetails(t *testing.T) {
+	tests := []struct {
+		name      string
+		service   string
+		location  LocationRetriever
+		providers ProviderSource
+		wantLine  string
+		wantError string
+	}{
+		{
+			name:      "list locations failure includes error",
+			service:   "compute",
+			location:  &testStruct{GetRegionsError},
+			providers: &testStruct{},
+			wantLine:  "failed to retrieve azure locations",
+			wantError: GetRegionsError,
+		},
+		{
+			name:      "compute providers failure includes error",
+			service:   "compute",
+			location:  &testStruct{},
+			providers: &testStruct{GetLocationError},
+			wantLine:  "failed to retrieve supported locations",
+			wantError: GetLocationError,
+		},
+		{
+			name:      "aks providers failure includes error",
+			service:   "aks",
+			location:  &testStruct{},
+			providers: &testStruct{GetLocationError},
+			wantLine:  "failed to retrieve supported locations",
+			wantError: GetLocationError,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testLogger := &logur.TestLogger{}
+			azureInfoer := AzureInfoer{
+				subscriptionId:      "sub-123",
+				log:                 cloudinfoadapter.NewLogger(testLogger),
+				subscriptionsClient: test.location,
+				providersClient:     test.providers,
+			}
+
+			regions, err := azureInfoer.GetRegions(test.service)
+			assert.Nil(t, regions)
+			assert.EqualError(t, err, test.wantError)
+
+			event := findLogEvent(t, testLogger, test.wantLine)
+			assert.Equal(t, logur.Error, event.Level)
+			assert.Equal(t, test.wantError, event.Fields["error"])
+		})
+	}
+}
+
+func TestAzureInfoer_GetZones_logsErrorDetails(t *testing.T) {
+	testLogger := &logur.TestLogger{}
+	azureInfoer := AzureInfoer{
+		log:        cloudinfoadapter.NewLogger(testLogger),
+		skusClient: &testStruct{GetVmsError},
+	}
+
+	zones, err := azureInfoer.GetZones("westeurope")
+	assert.Nil(t, zones)
+	assert.EqualError(t, err, GetVmsError)
+
+	event := findLogEvent(t, testLogger, "failed to retrieve azure zones")
+	assert.Equal(t, logur.Error, event.Level)
+	assert.Equal(t, GetVmsError, event.Fields["error"])
+	assert.Equal(t, "westeurope", event.Fields["region"])
+}
+
+func TestAzureInfoer_GetVersions_logsErrorDetails(t *testing.T) {
+	testLogger := &logur.TestLogger{}
+	azureInfoer := AzureInfoer{
+		log:                cloudinfoadapter.NewLogger(testLogger),
+		containerSvcClient: &testStruct{GetVersionsError},
+	}
+
+	versions, err := azureInfoer.GetVersions(svcAks, "westeurope")
+	assert.Nil(t, versions)
+	assert.EqualError(t, err, GetVersionsError)
+
+	event := findLogEvent(t, testLogger, "failed to retrieve aks versions")
+	assert.Equal(t, logur.Error, event.Level)
+	assert.Equal(t, GetVersionsError, event.Fields["error"])
+	assert.Equal(t, "westeurope", event.Fields["region"])
+}
+
+func TestAzureInfoer_GetProducts_logsErrorDetailsWhenVMsMissing(t *testing.T) {
+	testLogger := &logur.TestLogger{}
+	azureInfoer := AzureInfoer{
+		log:        cloudinfoadapter.NewLogger(testLogger),
+		skusClient: &testStruct{GetVmsError},
+	}
+
+	vms, err := azureInfoer.GetProducts(nil, "compute", "westeurope")
+	assert.Nil(t, vms)
+	assert.Error(t, err)
+
+	event := findLogEvent(t, testLogger, "could not get machine types for region")
+	assert.Equal(t, logur.Warn, event.Level)
+	assert.Equal(t, GetVmsError, event.Fields["error"])
+	assert.Equal(t, "westeurope", event.Fields["regionId"])
 }

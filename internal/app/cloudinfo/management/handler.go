@@ -52,13 +52,14 @@ func (mrh *mngmntRouteHandler) Import() gin.HandlerFunc {
 		mrh.log.Info("importing cloud information")
 		f, fh, err := c.Request.FormFile("data")
 		if err != nil {
-			mrh.log.Error("failed to import data", map[string]interface{}{"err": err})
+			mrh.log.Error("failed to import data", map[string]interface{}{"error": err.Error()})
 			c.JSON(http.StatusInternalServerError, err)
 			return
 		}
 
 		mrh.log.Info("loading cloud info", map[string]interface{}{"file": fh.Filename, "size": fh.Size})
 		if err := mrh.cis.Import(f); err != nil {
+			mrh.log.Error("failed to import data into store", map[string]interface{}{"error": err.Error()})
 			c.JSON(http.StatusInternalServerError, err)
 			return
 		}
@@ -72,13 +73,13 @@ func (mrh *mngmntRouteHandler) Refresh() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pathParams := api.GetProviderPathParams{}
 		if err := mapstructure.Decode(getPathParamMap(c), &pathParams); err != nil {
-			mrh.log.Error("failed to get provider")
+			mrh.log.Error("failed to get provider", map[string]interface{}{"error": err.Error()})
 			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to get the provider from path"})
 			return
 		}
 		// trigger refreshing the provider
 		if pathParams.Provider == "" {
-			mrh.log.Error("failed to get provider")
+			mrh.log.Error("failed to get provider", map[string]interface{}{"reason": "empty provider path param"})
 			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to get the provider from path"})
 			return
 		}

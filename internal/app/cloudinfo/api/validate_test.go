@@ -21,6 +21,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"logur.dev/logur"
 
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo/cloudinfoadapter"
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo/types"
@@ -132,6 +133,28 @@ func TestGetServicesPathParamsValidation(t *testing.T) {
 	}
 }
 
+func TestServiceValidator_logsErrorWhenGetServicesFails(t *testing.T) {
+	providers := []string{"azure"}
+	ci := &stubCloudInfo{}
+	testLogger := &logur.TestLogger{}
+	logger := cloudinfoadapter.NewLogger(testLogger)
+
+	v := validator.New()
+	v.SetTagName("binding")
+	require.NoError(t, v.RegisterValidation("provider", providerValidator(providers)))
+	require.NoError(t, v.RegisterValidation("service", serviceValidator(providers, ci, logger)))
+
+	err := v.Struct(GetServicesPathParams{
+		GetProviderPathParams: GetProviderPathParams{Provider: "azure"},
+		Service:               "compute",
+	})
+	assert.Error(t, err)
+
+	event := findValidateLogEvent(t, testLogger, "validation failed, could not retrieve services")
+	assert.Equal(t, logur.Warn, event.Level)
+	assert.Equal(t, "services not yet cached", event.Fields["error"])
+}
+
 func TestGetRegionPathParamsValidation(t *testing.T) {
 	providers := []string{"amazon"}
 	ci := &stubCloudInfo{
@@ -206,12 +229,53 @@ func TestGetRegionPathParamsValidation(t *testing.T) {
 	}
 }
 
+func TestRegionValidator_logsErrorWhenGetRegionsFails(t *testing.T) {
+	providers := []string{"amazon"}
+	ci := &stubCloudInfo{
+		services: map[string][]types.Service{
+			"amazon": {{Service: "compute"}},
+		},
+	}
+	testLogger := &logur.TestLogger{}
+	logger := cloudinfoadapter.NewLogger(testLogger)
+
+	v := validator.New()
+	v.SetTagName("binding")
+	require.NoError(t, v.RegisterValidation("provider", providerValidator(providers)))
+	require.NoError(t, v.RegisterValidation("service", serviceValidator(providers, ci, logger)))
+	require.NoError(t, v.RegisterValidation("region", regionValidator(providers, ci, logger)))
+
+	err := v.Struct(GetRegionPathParams{
+		GetServicesPathParams: GetServicesPathParams{
+			GetProviderPathParams: GetProviderPathParams{Provider: "amazon"},
+			Service:               "compute",
+		},
+		Region: "us-west-1",
+	})
+	assert.Error(t, err)
+
+	event := findValidateLogEvent(t, testLogger, "validation failed, could not retrieve regions")
+	assert.Equal(t, logur.Warn, event.Level)
+	assert.Equal(t, "regions not yet cached", event.Fields["error"])
+}
+
 func TestIsSupportedProvider(t *testing.T) {
 	providers := []string{"amazon", "azure"}
 
 	assert.True(t, isSupportedProvider(providers, "amazon"))
 	assert.False(t, isSupportedProvider(providers, "INVALID_PROVIDER"))
 	assert.False(t, isSupportedProvider(providers, ""))
+}
+
+func findValidateLogEvent(t *testing.T, logger *logur.TestLogger, line string) logur.LogEvent {
+	t.Helper()
+	for _, event := range logger.Events() {
+		if event.Line == line {
+			return event
+		}
+	}
+	t.Fatalf("expected log event %q not found in %#v", line, logger.Events())
+	return logur.LogEvent{}
 }
 
 func newTestValidator(t *testing.T, providers []string, ci types.CloudInfo) *validator.Validate {

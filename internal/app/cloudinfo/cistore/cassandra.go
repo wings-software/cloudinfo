@@ -185,7 +185,7 @@ func (cps *cassandraProductStore) getKey(keyTemplate string, args ...interface{}
 
 func (cps *cassandraProductStore) set(key string, value interface{}) (interface{}, bool) {
 	if err := cps.initSession(); err != nil {
-		cps.log.Error("failed to connect to backend")
+		cps.log.Error("failed to connect to backend", map[string]interface{}{"error": err.Error()})
 		return nil, false
 	}
 
@@ -196,13 +196,13 @@ func (cps *cassandraProductStore) set(key string, value interface{}) (interface{
 
 	// marshal the value into a json representation
 	if mJson, err = json.Marshal(value); err != nil {
-		cps.log.Debug("failed to marshal value into json", map[string]interface{}{"key": key, "value": value})
+		cps.log.Debug("failed to marshal value into json", map[string]interface{}{"key": key, "value": value, "error": err.Error()})
 		return nil, false
 	}
 
 	ins := fmt.Sprintf("INSERT INTO %s.%s (key, value) VALUES (?, ?)", cps.keySpace, cps.tableName)
 	if err = cps.session.Query(ins, key, mJson).Exec(); err != nil {
-		cps.log.Debug("failed to save value", map[string]interface{}{"key": key, "value": value})
+		cps.log.Debug("failed to save value", map[string]interface{}{"key": key, "value": value, "error": err.Error()})
 		return nil, false
 	}
 
@@ -212,7 +212,7 @@ func (cps *cassandraProductStore) set(key string, value interface{}) (interface{
 // get retrieves the value of the passed in key in it's raw format
 func (cps *cassandraProductStore) get(key string, toTypePtr interface{}) (interface{}, bool) {
 	if err := cps.initSession(); err != nil {
-		cps.log.Error("failed to connect to backend")
+		cps.log.Error("failed to connect to backend", map[string]interface{}{"error": err.Error()})
 		return nil, false
 	}
 
@@ -223,7 +223,7 @@ func (cps *cassandraProductStore) get(key string, toTypePtr interface{}) (interf
 
 	getQ := fmt.Sprintf("SELECT value FROM  %s.%s WHERE key = ?", cps.keySpace, cps.tableName)
 	if err = cps.session.Query(getQ, key).Scan(&cachedJson); err != nil {
-		cps.log.Debug("failed to get entry", map[string]interface{}{"key": key})
+		cps.log.Debug("failed to get entry", map[string]interface{}{"key": key, "error": err.Error()})
 		return nil, false
 	}
 
@@ -234,7 +234,7 @@ func (cps *cassandraProductStore) get(key string, toTypePtr interface{}) (interf
 
 	// unmarshal the cache value into th desired struct
 	if err = json.Unmarshal([]byte(cachedJson), &toTypePtr); err != nil {
-		cps.log.Debug("failed to unmarshal cache entry", map[string]interface{}{"key": key})
+		cps.log.Debug("failed to unmarshal cache entry", map[string]interface{}{"key": key, "error": err.Error()})
 		return nil, false
 	}
 
@@ -243,13 +243,13 @@ func (cps *cassandraProductStore) get(key string, toTypePtr interface{}) (interf
 
 func (cps *cassandraProductStore) delete(key string) {
 	if err := cps.initSession(); err != nil {
-		cps.log.Error("failed to connect to backend")
+		cps.log.Error("failed to connect to backend", map[string]interface{}{"error": err.Error()})
 		return
 	}
 
 	delQ := fmt.Sprintf("DELETE FROM %s.%s WHERE key = ?", cps.keySpace, cps.tableName)
 	if err := cps.session.Query(delQ, key).Exec(); err != nil {
-		cps.log.Error("failed to delete key", map[string]interface{}{"key": key})
+		cps.log.Error("failed to delete key", map[string]interface{}{"key": key, "error": err.Error()})
 	}
 }
 
@@ -265,7 +265,7 @@ func (cps *cassandraProductStore) initSession() error {
 	var err error
 	cps.log.Debug("creating new session...")
 	if cps.session, err = cps.cluster.CreateSession(); err != nil {
-		cps.log.Error("failed to create session")
+		cps.log.Error("failed to create session", map[string]interface{}{"error": err.Error()})
 		return emperror.Wrap(err, "failed to create cassandra session")
 	}
 
@@ -274,12 +274,12 @@ func (cps *cassandraProductStore) initSession() error {
 	tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s.%s (	key text, value text, PRIMARY KEY(key))", cps.keySpace, cps.tableName)
 
 	if err = cps.session.Query(keyspaceQuery).Exec(); err != nil {
-		cps.log.Error("failed to create keyspace")
+		cps.log.Error("failed to create keyspace", map[string]interface{}{"error": err.Error()})
 		return emperror.Wrap(err, "failed to create keyspace")
 	}
 
 	if err := cps.session.Query(tableQuery).Exec(); err != nil {
-		cps.log.Error("failed to create product table")
+		cps.log.Error("failed to create product table", map[string]interface{}{"error": err.Error()})
 		return emperror.Wrap(err, "failed to create product table")
 	}
 

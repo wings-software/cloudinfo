@@ -72,7 +72,9 @@ func regionValidator(providers []string, cpi types.CloudInfo, logger cloudinfo.L
 
 		regions, err := cpi.GetRegions(regionPathParams.Provider, regionPathParams.Service)
 		if err != nil {
-			l.Warn("validation failed, could not retrieve regions")
+			l.Warn("validation failed, could not retrieve regions", map[string]interface{}{
+				"error": err.Error(),
+			})
 			return false
 		}
 
@@ -114,7 +116,9 @@ func serviceValidator(providers []string, cpi types.CloudInfo, logger cloudinfo.
 
 		services, err := cpi.GetServices(servicesPathParams.Provider)
 		if err != nil {
-			l.Warn("validation failed, could not retrieve services")
+			l.Warn("validation failed, could not retrieve services", map[string]interface{}{
+				"error": err.Error(),
+			})
 			return false
 		}
 

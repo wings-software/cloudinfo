@@ -226,12 +226,18 @@ func (i *Infoer) GetProducts(vms []types.VMInfo, service, regionId string) ([]ty
 
 		ntwPerfCat, err := ntwMapper.MapNetworkPerf(s.NtwPerf)
 		if err != nil {
-			logger.Warn("failed to get network performance category", map[string]interface{}{"shape": shape})
+			logger.Warn("failed to get network performance category", map[string]interface{}{
+				"shape": shape,
+				"error": err.Error(),
+			})
 		}
 
 		price, err := i.GetProductPrice(s)
 		if err != nil {
-			logger.Warn("failed to get product price", map[string]interface{}{"shape": shape})
+			logger.Warn("failed to get product price", map[string]interface{}{
+				"shape": shape,
+				"error": err.Error(),
+			})
 			continue
 		}
 

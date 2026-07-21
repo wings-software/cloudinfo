@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"logur.dev/logur"
 
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo/cloudinfoadapter"
@@ -655,4 +656,57 @@ func TestPriceData_newPriceData(t *testing.T) {
 			test.check(newPriceData(test.prData))
 		})
 	}
+}
+
+func TestEc2Infoer_GetProducts_logsErrorDetails(t *testing.T) {
+	partition, ok := endpoints.PartitionForRegion(endpoints.DefaultPartitions(), endpoints.UsWest2RegionID)
+	require.True(t, ok)
+
+	testLogger := &logur.TestLogger{}
+	infoer := &Ec2Infoer{
+		pricingSvc: &testStruct{TcId: 5},
+		partition:  partition,
+		log:        cloudinfoadapter.NewLogger(testLogger),
+	}
+
+	vms, err := infoer.GetProducts(nil, "compute", endpoints.UsWest2RegionID)
+	assert.Nil(t, vms)
+	assert.Error(t, err)
+
+	var event *logur.LogEvent
+	for _, e := range testLogger.Events() {
+		if e.Line == "could not get machine types for region" {
+			event = &e
+			break
+		}
+	}
+	require.NotNil(t, event)
+	assert.Equal(t, logur.Warn, event.Level)
+	assert.Equal(t, "failed to retrieve values", event.Fields["error"])
+	assert.Equal(t, endpoints.UsWest2RegionID, event.Fields["regionId"])
+}
+
+func TestEc2Infoer_GetVirtualMachines_logsPricingExtractError(t *testing.T) {
+	partition, ok := endpoints.PartitionForRegion(endpoints.DefaultPartitions(), endpoints.UsWest2RegionID)
+	require.True(t, ok)
+
+	testLogger := &logur.TestLogger{}
+	infoer := &Ec2Infoer{
+		pricingSvc: &testStruct{TcId: 6},
+		partition:  partition,
+		log:        cloudinfoadapter.NewLogger(testLogger),
+	}
+
+	// price list item missing required fields should be skipped with a warning
+	_, err := infoer.GetVirtualMachines(endpoints.UsWest2RegionID)
+	assert.NoError(t, err)
+
+	var found bool
+	for _, e := range testLogger.Events() {
+		if e.Line == "could not retrieve instance family" || e.Line == "could not extract pricing info" {
+			assert.NotEmpty(t, e.Fields["error"])
+			found = true
+		}
+	}
+	assert.True(t, found, "expected pricing extract/instance family warning with error field")
 }

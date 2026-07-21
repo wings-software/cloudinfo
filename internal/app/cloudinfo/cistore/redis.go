@@ -41,7 +41,7 @@ func (rps *redisProductStore) Ready() bool {
 		return false
 	}
 	if reply != "PONG" {
-		rps.log.Error("redis PING returned unexpected value")
+		rps.log.Error("redis PING returned unexpected value", map[string]interface{}{"reply": reply})
 		return false
 	}
 	rps.log.Debug("redis product store ready")
@@ -75,7 +75,7 @@ func (rps *redisProductStore) get(key string, toTypePtr interface{}) (interface{
 	)
 
 	if cachedJson, err = conn.Do("GET", key); err != nil {
-		rps.log.Debug("failed to get entry", map[string]interface{}{"key": key})
+		rps.log.Debug("failed to get entry", map[string]interface{}{"key": key, "error": err.Error()})
 		return nil, false
 	}
 
@@ -86,7 +86,7 @@ func (rps *redisProductStore) get(key string, toTypePtr interface{}) (interface{
 
 	// unmarshal the cache value into th desired struct
 	if err = json.Unmarshal(cachedJson.([]byte), toTypePtr); err != nil {
-		rps.log.Debug("failed to unmarshal cache entry", map[string]interface{}{"val": cachedJson})
+		rps.log.Debug("failed to unmarshal cache entry", map[string]interface{}{"val": cachedJson, "error": err.Error()})
 		return nil, false
 	}
 
@@ -105,12 +105,12 @@ func (rps *redisProductStore) set(key string, value interface{}) (interface{}, b
 
 	// marshal the value into a json representation
 	if mJson, err = json.Marshal(value); err != nil {
-		rps.log.Debug("failed to marshal value into json", map[string]interface{}{"key": key, "value": value})
+		rps.log.Debug("failed to marshal value into json", map[string]interface{}{"key": key, "value": value, "error": err.Error()})
 		return nil, false
 	}
 
 	if _, err = conn.Do("SET", key, mJson); err != nil {
-		rps.log.Error("failed to set key to value", map[string]interface{}{"key": key, "value": value})
+		rps.log.Error("failed to set key to value", map[string]interface{}{"key": key, "value": value, "error": err.Error()})
 		return nil, false
 	}
 
@@ -122,7 +122,7 @@ func (rps *redisProductStore) delete(key string) {
 	defer conn.Close()
 
 	if _, err := conn.Do("DEL", key); err != nil {
-		rps.log.Error("failed to delete entry", map[string]interface{}{"key": key})
+		rps.log.Error("failed to delete entry", map[string]interface{}{"key": key, "error": err.Error()})
 	}
 }
 

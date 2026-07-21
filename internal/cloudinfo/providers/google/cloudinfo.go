@@ -528,7 +528,10 @@ func (g *GceInfoer) GetProducts(vms []types.VMInfo, service, regionId string) ([
 		var err error
 		vmList, err = g.GetVirtualMachines(regionId)
 		if err != nil {
-			g.log.Warn("could not get machine types for region", map[string]interface{}{"regionId": regionId})
+			g.log.Warn("could not get machine types for region", map[string]interface{}{
+				"regionId": regionId,
+				"error":    err.Error(),
+			})
 			return nil, emperror.Wrap(err, "failed to get products")
 		}
 	}

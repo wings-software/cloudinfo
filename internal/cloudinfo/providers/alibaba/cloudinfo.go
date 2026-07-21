@@ -82,7 +82,10 @@ func (a *AlibabaInfoer) getCurrentSpotPrices(region string) (map[string]types.Sp
 			if priceInfo[instanceType] == nil {
 				describeSpotPriceHistory, err := a.client.ProcessCommonRequest(a.describeSpotPriceHistoryRequest(region, instanceType))
 				if err != nil {
-					logger.Error("failed to get spot price history", map[string]interface{}{"instancetype": instanceType})
+					logger.Error("failed to get spot price history", map[string]interface{}{
+						"instancetype": instanceType,
+						"error":        err.Error(),
+					})
 					continue
 				}
 
@@ -198,7 +201,10 @@ func (a *AlibabaInfoer) GetProducts(vms []types.VMInfo, service, regionId string
 		var err error
 		vmList, err = a.GetVirtualMachines(regionId)
 		if err != nil {
-			a.log.Warn("could not get machine types for region", map[string]interface{}{"regionId": regionId})
+			a.log.Warn("could not get machine types for region", map[string]interface{}{
+				"regionId": regionId,
+				"error":    err.Error(),
+			})
 			return nil, emperror.Wrap(err, "failed to get products")
 		}
 	}
