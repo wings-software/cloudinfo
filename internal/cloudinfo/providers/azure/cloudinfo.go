@@ -841,7 +841,7 @@ func (a *AzureInfoer) GetRegions(service string) (map[string]string, error) {
 	// retrieve all locations for the subscription id (some of them may not be supported by the required provider)
 	locations, err := a.subscriptionsClient.ListLocations(context.TODO(), a.subscriptionId)
 	if err != nil {
-		logger.Error("failed to retrieve azure locations", map[string]interface{}{
+		logger.Warn("failed to retrieve azure locations", map[string]interface{}{
 			"error":          err.Error(),
 			"subscriptionId": a.subscriptionId,
 		})
@@ -869,7 +869,7 @@ func (a *AzureInfoer) GetRegions(service string) (map[string]string, error) {
 	case "aks":
 		providers, err := a.providersClient.Get(context.TODO(), providerNamespaceForAks, "")
 		if err != nil {
-			logger.Error("failed to retrieve supported locations", map[string]interface{}{
+			logger.Warn("failed to retrieve supported locations", map[string]interface{}{
 				"resource": resourceTypeForAks,
 				"error":    err.Error(),
 			})
@@ -897,7 +897,7 @@ func (a *AzureInfoer) GetRegions(service string) (map[string]string, error) {
 	default:
 		providers, err := a.providersClient.Get(context.TODO(), providerNamespaceForCompute, "")
 		if err != nil {
-			logger.Error("failed to retrieve supported locations", map[string]interface{}{
+			logger.Warn("failed to retrieve supported locations", map[string]interface{}{
 				"resource": resourceTypeForCompute,
 				"error":    err.Error(),
 			})

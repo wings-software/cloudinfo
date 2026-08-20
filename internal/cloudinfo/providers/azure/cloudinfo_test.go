@@ -777,7 +777,7 @@ func TestAzureInfoer_GetRegions_logsErrorDetails(t *testing.T) {
 			assert.EqualError(t, err, test.wantError)
 
 			event := findLogEvent(t, testLogger, test.wantLine)
-			assert.Equal(t, logur.Error, event.Level)
+			assert.Equal(t, logur.Warn, event.Level)
 			assert.Equal(t, test.wantError, event.Fields["error"])
 		})
 	}

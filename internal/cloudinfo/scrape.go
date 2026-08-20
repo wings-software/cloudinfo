@@ -55,8 +55,7 @@ func (sm *scrapingManager) initialize(ctx context.Context) {
 	sm.log.Info("initializing cloud product information")
 	prices, err := sm.infoer.Initialize()
 	if err != nil {
-		sm.log.Error("failed to initialize cloud product information", map[string]interface{}{"error": fmt.Sprintf("%v", err)})
-		sm.errorHandler.Handle(err)
+		sm.log.Warn("failed to initialize cloud product information", map[string]interface{}{"error": fmt.Sprintf("%v", err)})
 		return
 	}
 
@@ -269,7 +268,7 @@ func (sm *scrapingManager) scrapeServiceInformation(ctx context.Context) {
 
 	err := sm.scrapeServiceRegionInfo(ctx, storedServices)
 	if err != nil {
-		sm.log.Error("failed to scrape service region information", map[string]interface{}{
+		sm.log.Warn("failed to scrape service region information", map[string]interface{}{
 			"provider": sm.provider,
 			"error":    err.Error(),
 		})
