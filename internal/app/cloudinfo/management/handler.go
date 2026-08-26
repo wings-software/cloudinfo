@@ -24,6 +24,7 @@ import (
 
 	"github.com/banzaicloud/cloudinfo/internal/app/cloudinfo/api"
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo"
+	"github.com/banzaicloud/cloudinfo/internal/platform/meshidentity"
 )
 
 // mngmntRouteHandler struct collecting handlers for the management service
@@ -91,7 +92,7 @@ func (mrh *mngmntRouteHandler) Refresh() gin.HandlerFunc {
 	}
 }
 
-func StartManagementEngine(cfg Config, cis cloudinfo.CloudInfoStore, sd cloudinfo.ScrapingDriver, log cloudinfo.Logger) *gin.Engine {
+func StartManagementEngine(cfg Config, cis cloudinfo.CloudInfoStore, sd cloudinfo.ScrapingDriver, log cloudinfo.Logger, meshHolder *meshidentity.Holder) *gin.Engine {
 	if err := cfg.Validate(); err != nil {
 		emperror.Panic(err)
 	}
@@ -103,7 +104,7 @@ func StartManagementEngine(cfg Config, cis cloudinfo.CloudInfoStore, sd cloudinf
 	base.GET("export", rh.Export())
 	base.PUT("import", rh.Import())
 	base.PUT("refresh/:provider", rh.Refresh())
-	if err := router.Run(cfg.Address); err != nil {
+	if err := http.ListenAndServe(cfg.Address, meshidentity.WrapHandler(meshHolder, router)); err != nil {
 		emperror.Panic(err)
 	}
 

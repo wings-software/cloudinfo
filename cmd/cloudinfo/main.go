@@ -27,7 +27,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 
@@ -58,6 +60,7 @@ import (
 	"github.com/banzaicloud/cloudinfo/internal/platform/buildinfo"
 	"github.com/banzaicloud/cloudinfo/internal/platform/errorhandler"
 	"github.com/banzaicloud/cloudinfo/internal/platform/log"
+	"github.com/banzaicloud/cloudinfo/internal/platform/meshidentity"
 	"github.com/banzaicloud/cloudinfo/internal/platform/profiler"
 )
 
@@ -156,6 +159,14 @@ func main() {
 
 	logger.Info("starting application", buildInfo.Fields())
 
+	meshHolder, err := meshidentity.Bootstrap(context.Background())
+	emperror.Panic(errors.Wrap(err, "failed to bootstrap mesh identity"))
+	defer func() {
+		if closeErr := meshHolder.Close(); closeErr != nil {
+			logger.Error(closeErr.Error())
+		}
+	}()
+
 	// default tracer
 	tracer := tracing.NewNoOpTracer()
 
@@ -210,7 +221,7 @@ func main() {
 		// start the management service
 		// TODO: management requires scraping at the moment. Let's remove that dependency.
 		if config.Management.Enabled {
-			go management.StartManagementEngine(config.Management, cloudInfoStore, *scrapingDriver, cloudInfoLogger)
+			go management.StartManagementEngine(config.Management, cloudInfoStore, *scrapingDriver, cloudInfoLogger, meshHolder)
 		}
 	}
 
@@ -248,7 +259,7 @@ func main() {
 
 	routeHandler.ConfigureRoutes(router, config.App.BasePath)
 
-	err = router.Run(config.App.Address)
+	err = http.ListenAndServe(config.App.Address, meshidentity.WrapHandler(meshHolder, router))
 	emperror.Panic(errors.Wrap(err, "failed to run router"))
 }
 

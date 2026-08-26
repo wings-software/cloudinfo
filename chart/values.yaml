@@ -145,12 +145,19 @@ resources:
 #     configMap:
 #       name: test-config
 #       # readOnly: true
-extraVolumes: []
+extraVolumes:
+  - name: spire-agent-socket
+    hostPath:
+      path: /run/spire/agent-sockets
+      type: DirectoryOrCreate
 
 # extraVolumeMounts:
 #   - name: volume-test
 #     mountPath: /opt/harness/config
-extraVolumeMounts: []
+extraVolumeMounts:
+  - name: spire-agent-socket
+    mountPath: /run/spire/agent-sockets
+    readOnly: true
 
 lifecycleHooks: {}
 # lifecycleHooks:
@@ -192,6 +199,12 @@ secrets:
 
 config:
   USE_WORKLOAD_IDENTITY: "false"
+  # SPIRE mesh identity. Stage 0 prepares the socket only; both flags stay false
+  # until the binary ships and QA turns them on.
+  MESH_IDENTITY_INBOUND_ENABLED: "false"
+  MESH_IDENTITY_OUTBOUND_ENABLED: "false"
+  MESH_IDENTITY_AUDIENCE: "CloudInfo"
+  SPIFFE_ENDPOINT_SOCKET: "unix:///run/spire/agent-sockets/spire-agent.sock"
 
 rbac:
   rules: []
