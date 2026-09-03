@@ -19,7 +19,6 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net/http"
-	"net/http/pprof"
 	"strings"
 
 	"emperror.dev/emperror"
@@ -28,7 +27,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo"
 	"github.com/banzaicloud/cloudinfo/internal/cloudinfo/metrics"
@@ -40,21 +38,23 @@ import (
 
 // RouteHandler configures the REST API routes in the gin router
 type RouteHandler struct {
-	log            cloudinfo.Logger
-	prod           types.CloudInfo
-	buildInfo      buildinfo.BuildInfo
-	errorResponder Responder
-	graphqlHandler http.Handler
+	log              cloudinfo.Logger
+	prod             types.CloudInfo
+	buildInfo        buildinfo.BuildInfo
+	errorResponder   Responder
+	graphqlHandler   http.Handler
+	pprofSecretToken string
 }
 
 // NewRouteHandler creates a new RouteHandler and returns a reference to it
-func NewRouteHandler(p types.CloudInfo, bi buildinfo.BuildInfo, graphqlHandler http.Handler, log cloudinfo.Logger) *RouteHandler {
+func NewRouteHandler(p types.CloudInfo, bi buildinfo.BuildInfo, graphqlHandler http.Handler, log cloudinfo.Logger, pprofSecretToken string) *RouteHandler {
 	return &RouteHandler{
-		prod:           p,
-		buildInfo:      bi,
-		errorResponder: NewErrorResponder(),
-		graphqlHandler: graphqlHandler,
-		log:            log,
+		prod:             p,
+		buildInfo:        bi,
+		errorResponder:   NewErrorResponder(),
+		graphqlHandler:   graphqlHandler,
+		log:              log,
+		pprofSecretToken: pprofSecretToken,
 	}
 }
 
@@ -124,13 +124,7 @@ func (r *RouteHandler) ConfigureRoutes(router *gin.Engine, basePath string) {
 
 	base.POST("/graphql", r.query())
 
-	heapRoutePath := fmt.Sprintf("/heap/%s", uuid.New().String())
-	r.log.Info("Heap pprof path", map[string]interface{}{"path": heapRoutePath})
-	router.GET(heapRoutePath, gin.WrapF(pprof.Handler("heap").ServeHTTP))
-
-	goRoutineRoutePath := fmt.Sprintf("/goroutine/%s", uuid.New().String())
-	r.log.Info("Goroutine pprof path", map[string]interface{}{"path": goRoutineRoutePath})
-	router.GET(goRoutineRoutePath, gin.WrapF(pprof.Handler("goroutine").ServeHTTP))
+	attachPprof(router, r.pprofSecretToken)
 }
 
 func (r *RouteHandler) signalStatus(c *gin.Context) {
