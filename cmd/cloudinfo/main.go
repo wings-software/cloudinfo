@@ -234,7 +234,7 @@ func main() {
 		errorHandler,
 	)
 
-	routeHandler := api.NewRouteHandler(prodInfo, buildInfo, graphqlHandler, cloudInfoLogger, config.Pprof.SecretToken)
+	routeHandler := api.NewRouteHandler(prodInfo, buildInfo, graphqlHandler, cloudInfoLogger)
 
 	// new default gin engine (recovery, logger middleware)
 	router := gin.Default()

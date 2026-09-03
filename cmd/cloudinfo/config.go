@@ -183,10 +183,6 @@ type configuration struct {
 	ServiceLoader loader.Config
 
 	Store cistore.Config
-
-	Pprof struct {
-		SecretToken string `mapstructure:"secret_token"`
-	}
 }
 
 // Validate validates the configuration.
@@ -347,8 +343,6 @@ func configure(v *viper.Viper, p *pflag.FlagSet) {
 	_ = v.BindPFlag("provider.digitalocean.enabled", p.Lookup("provider-digitalocean"))
 
 	_ = v.BindEnv("provider.digitalocean.accessToken", "DIGITALOCEAN_ACCESS_TOKEN")
-
-	_ = v.BindEnv("pprof.secret_token", "CLOUDINFO_PPROF_SECRET_TOKEN")
 
 	// Management
 	v.SetDefault("management.enabled", true)
