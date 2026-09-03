@@ -130,6 +130,10 @@ enabled = false
 enabled = true
 address = ":8001"
 
+[pprof]
+# Required in the Token header to access /debug/pprof/*. Empty disables pprof.
+secret_token = ""
+
 [serviceloader]
 serviceConfigLocation = "./configs"
 serviceConfigName = "services"
