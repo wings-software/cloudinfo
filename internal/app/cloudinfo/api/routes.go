@@ -51,7 +51,7 @@ func NewRouteHandler(p types.CloudInfo, bi buildinfo.BuildInfo, graphqlHandler h
 	return &RouteHandler{
 		prod:             p,
 		buildInfo:        bi,
-		errorResponder:   NewErrorResponder(),
+		errorResponder:   NewErrorResponder(log),
 		graphqlHandler:   graphqlHandler,
 		log:              log,
 		pprofSecretToken: pprofSecretToken,

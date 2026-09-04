@@ -27,23 +27,37 @@ import (
 )
 
 // MakeGraphQLHandler mounts all of the service endpoints into a GraphQL handler.
+// complexityLimit caps the total complexity of a single GraphQL query to mitigate
+// resource-exhaustion attacks against the public, unauthenticated endpoint
+// (deeply nested / wide queries). A value <= 0 disables the limit (the default,
+// for backwards compatibility).
 func MakeGraphQLHandler(
 	endpoints Endpoints,
 	providerEndpoints ProviderEndpoints,
 	serviceEndpoints ServiceEndpoints,
 	regionEndpoints RegionEndpoints,
 	errorHandler cloudinfo.ErrorHandler,
+	complexityLimit int,
 ) http.Handler {
 	// nolint: staticcheck
-	return handler.GraphQL(graphql.NewExecutableSchema(graphql.Config{
-		Resolvers: &resolver{
-			endpoints:         endpoints,
-			providerEndpoints: providerEndpoints,
-			serviceEndpoints:  serviceEndpoints,
-			regionEndpoints:   regionEndpoints,
-			errorHandler:      errorHandler,
-		},
-	}))
+	options := []handler.Option{}
+	if complexityLimit > 0 {
+		options = append(options, handler.ComplexityLimit(complexityLimit))
+	}
+
+	// nolint: staticcheck
+	return handler.GraphQL(
+		graphql.NewExecutableSchema(graphql.Config{
+			Resolvers: &resolver{
+				endpoints:         endpoints,
+				providerEndpoints: providerEndpoints,
+				serviceEndpoints:  serviceEndpoints,
+				regionEndpoints:   regionEndpoints,
+				errorHandler:      errorHandler,
+			},
+		}),
+		options...,
+	)
 }
 
 type resolver struct {

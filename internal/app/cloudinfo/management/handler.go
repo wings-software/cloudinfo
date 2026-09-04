@@ -16,6 +16,7 @@ package management
 
 import (
 	"context"
+	"crypto/subtle"
 	"net/http"
 
 	"emperror.dev/emperror"
@@ -100,6 +101,11 @@ func StartManagementEngine(cfg Config, cis cloudinfo.CloudInfoStore, sd cloudinf
 
 	router := gin.New()
 	base := router.Group("/management/store")
+	if cfg.Token != "" {
+		base.Use(tokenAuth(cfg.Token))
+	} else {
+		log.Warn("management API token is not set; endpoints are unauthenticated - ensure the management address is bound to a loopback interface")
+	}
 	base.GET("export", rh.Export())
 	base.PUT("import", rh.Import())
 	base.PUT("refresh/:provider", rh.Refresh())
@@ -108,6 +114,20 @@ func StartManagementEngine(cfg Config, cis cloudinfo.CloudInfoStore, sd cloudinf
 	}
 
 	return router
+}
+
+// tokenAuth returns a middleware that requires the "Token" header to match the
+// configured secret token using a constant-time comparison.
+func tokenAuth(expected string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		provided := c.GetHeader("Token")
+		if len(provided) != len(expected) ||
+			subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+		c.Next()
+	}
 }
 
 // getPathParamMap transforms the path params into a map to be able to easily bind to param structs

@@ -16,7 +16,6 @@ package problems
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/moogar0880/problems"
@@ -48,8 +47,13 @@ func NewProviderProblem(code int, details string) *ProblemWrapper {
 	return &ProblemWrapper{pb}
 }
 
-func NewUnknownProblem(un interface{}) *ProblemWrapper {
-	return &ProblemWrapper{problems.NewDetailedProblem(http.StatusInternalServerError, fmt.Sprintf("%s", un))}
+// unknownProblemDetail is the generic, non-revealing message returned to clients
+// for unexpected internal errors. The concrete error is intentionally not
+// exposed to avoid leaking internal implementation details.
+const unknownProblemDetail = "internal server error"
+
+func NewUnknownProblem(_ interface{}) *ProblemWrapper {
+	return &ProblemWrapper{problems.NewDetailedProblem(http.StatusInternalServerError, unknownProblemDetail)}
 }
 
 func IsDefaultProblem(d interface{}) bool {

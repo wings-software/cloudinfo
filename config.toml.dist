@@ -129,10 +129,21 @@ enabled = false
 [management]
 enabled = true
 address = ":8001"
+# When set, callers must send this value in the "Token" header to access
+# /management/store/*. Empty means no authentication. Can also be provided via
+# the CLOUDINFO_MANAGEMENT_TOKEN environment variable (which overrides this).
+token = ""
 
 [pprof]
 # Required in the Token header to access /debug/pprof/*. Empty disables pprof.
 secret_token = ""
+
+[graphql]
+# Caps the total complexity of a single GraphQL query to mitigate
+# resource-exhaustion attacks. A value <= 0 disables the limit (the default).
+# Set a positive value (e.g. 200) to enable it. Can also be set via the
+# CLOUDINFO_GRAPHQL_COMPLEXITY_LIMIT environment variable.
+complexity_limit = 0
 
 [serviceloader]
 serviceConfigLocation = "./configs"

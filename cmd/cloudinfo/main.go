@@ -232,9 +232,16 @@ func main() {
 		serviceEndpoints,
 		regionEndpoints,
 		errorHandler,
+		v.GetInt("graphql.complexity_limit"),
 	)
 
 	routeHandler := api.NewRouteHandler(prodInfo, buildInfo, graphqlHandler, cloudInfoLogger, config.Pprof.SecretToken)
+
+	// Run gin in release mode unless debugging is explicitly enabled to avoid
+	// leaking debug output and to disable the framework's debug warnings.
+	if !config.Debug {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	// new default gin engine (recovery, logger middleware)
 	router := gin.Default()

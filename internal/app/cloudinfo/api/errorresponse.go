@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/banzaicloud/cloudinfo/internal/app/cloudinfo/problems"
+	"github.com/banzaicloud/cloudinfo/internal/cloudinfo"
 )
 
 // Responder marks responders
@@ -31,6 +32,7 @@ type Responder interface {
 // errorResponder struct in charge for assembling classified error responses
 type errorResponder struct {
 	errClassifier Classifier
+	logger        cloudinfo.Logger
 }
 
 // Respond assembles the error response corresponding to the passed in error
@@ -38,6 +40,12 @@ func (er *errorResponder) Respond(ginCtx *gin.Context, err error) {
 	if responseData, e := er.errClassifier.Classify(err); e == nil {
 		er.respond(ginCtx, responseData)
 		return
+	}
+
+	// The concrete error is masked from the client to avoid leaking internal
+	// details, so it must be logged here to remain diagnosable.
+	if er.logger != nil {
+		er.logger.Error("unhandled internal error", map[string]interface{}{"error": err.Error()})
 	}
 
 	er.respond(ginCtx, problems.NewUnknownProblem(err))
@@ -54,8 +62,9 @@ func (er *errorResponder) respond(ginCtx *gin.Context, d interface{}) {
 }
 
 // NewErrorResponder configures a new error responder
-func NewErrorResponder() Responder {
+func NewErrorResponder(logger cloudinfo.Logger) Responder {
 	return &errorResponder{
 		errClassifier: NewErrorClassifier(),
+		logger:        logger,
 	}
 }

@@ -22,6 +22,11 @@ import (
 type Config struct {
 	Enabled bool
 	Address string
+
+	// Token, when set, is required in the "Token" request header to access
+	// any management endpoint. Empty disables token authentication (in which
+	// case the management API should only be exposed on a loopback address).
+	Token string
 }
 
 func (cfg *Config) Validate() error {

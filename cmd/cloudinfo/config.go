@@ -351,8 +351,19 @@ func configure(v *viper.Viper, p *pflag.FlagSet) {
 	_ = v.BindEnv("pprof.secret_token", "CLOUDINFO_PPROF_SECRET_TOKEN")
 
 	// Management
+	// When management.token is set (typically via the CLOUDINFO_MANAGEMENT_TOKEN
+	// env var), the management API requires the "Token" header. If it is unset the
+	// API stays unauthenticated for backwards compatibility, so bind it carefully.
 	v.SetDefault("management.enabled", true)
 	v.SetDefault("management.address", ":8001")
+	_ = v.BindEnv("management.token", "CLOUDINFO_MANAGEMENT_TOKEN")
+
+	// GraphQL
+	// Caps the complexity of a single GraphQL query. A value <= 0 disables the
+	// limit (the default, for backwards compatibility). Read via viper's GetInt so
+	// a string value coming from an env var / ConfigMap is coerced to an int.
+	v.SetDefault("graphql.complexity_limit", 0)
+	_ = v.BindEnv("graphql.complexity_limit", "CLOUDINFO_GRAPHQL_COMPLEXITY_LIMIT")
 
 	// ServiceLoader
 	v.SetDefault("serviceloader.serviceConfigLocation", "./configs")
