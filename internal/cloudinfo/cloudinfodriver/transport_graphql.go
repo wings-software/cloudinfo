@@ -19,7 +19,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/99designs/gqlgen/handler"
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/go-kit/kit/endpoint"
 
 	"github.com/banzaicloud/cloudinfo/.gen/api/graphql"
@@ -39,14 +40,7 @@ func MakeGraphQLHandler(
 	errorHandler cloudinfo.ErrorHandler,
 	complexityLimit int,
 ) http.Handler {
-	// nolint: staticcheck
-	options := []handler.Option{}
-	if complexityLimit > 0 {
-		options = append(options, handler.ComplexityLimit(complexityLimit))
-	}
-
-	// nolint: staticcheck
-	return handler.GraphQL(
+	srv := handler.NewDefaultServer(
 		graphql.NewExecutableSchema(graphql.Config{
 			Resolvers: &resolver{
 				endpoints:         endpoints,
@@ -56,8 +50,13 @@ func MakeGraphQLHandler(
 				errorHandler:      errorHandler,
 			},
 		}),
-		options...,
 	)
+
+	if complexityLimit > 0 {
+		srv.Use(extension.FixedComplexityLimit(complexityLimit))
+	}
+
+	return srv
 }
 
 type resolver struct {

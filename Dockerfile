@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.25-rfcurated AS builder
+FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.26-rfcurated AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
@@ -54,8 +54,14 @@ RUN set -xe && \
 
 # Final image
 # FROM alpine:3.14.0
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM harness0.harness.io/oci/docker_artifacts/ubi9:9.9-rfcurated
 USER root
+
+# The curated base image may set a non-root WORKDIR. cloudinfo discovers its
+# config.toml via viper's relative "./config" search path, which only resolves
+# to the mounted /config when the working directory is "/". Pin it explicitly so
+# the mounted configuration is found regardless of the base image default.
+WORKDIR /
 
 # RUN apk add --update --no-cache ca-certificates tzdata bash curl
 
