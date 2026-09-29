@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.26-rfcurated AS builder
+FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.26.8-fips-rfcurated AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
@@ -23,8 +23,8 @@ ENV GOFLAGS="-mod=readonly"
 #RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
 
 USER root
-RUN microdnf update && microdnf install -y ca-certificates make git curl && microdnf clean all
-
+# ca-certificates and make are already present on the FIPS go image.
+# Installing git/curl pulls rf-curated deps that currently fail OpenPGP checks.
 
 RUN mkdir -p /workspace
 WORKDIR /workspace
@@ -72,8 +72,6 @@ SHELL ["/bin/bash", "-c"]
 # RUN test ! -e /etc/nsswitch.conf && echo 'hosts: files dns' > /etc/nsswitch.conf
 
 ARG BUILD_TARGET
-
-RUN if [[ "${BUILD_TARGET}" == "debug" ]]; then apk add --update --no-cache libc6-compat; fi
 
 COPY --from=builder /build/* /usr/local/bin/
 

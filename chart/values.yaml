@@ -378,6 +378,7 @@ secrets:
 config:
   USE_WORKLOAD_IDENTITY: "false"
   CLOUDINFO_GRAPHQL_COMPLEXITY_LIMIT: "0"
+  FIPS_ENABLED: '{{ .Values.global.fips }}'
 
 rbac:
   rules: []
