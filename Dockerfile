@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.26.8-fips-rfcurated AS builder
+FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.26.10-fips-rfcurated AS builder
 
 ENV GOFLAGS="-mod=readonly"
 

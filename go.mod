@@ -1,8 +1,6 @@
 module github.com/banzaicloud/cloudinfo
 
-go 1.26
-
-toolchain go1.26.8
+go 1.26.10
 
 require (
 	cloud.google.com/go/profiler v0.3.1
