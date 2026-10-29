@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.26.10-fips-rfcurated AS builder
+FROM harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10-dev AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
@@ -23,8 +23,7 @@ ENV GOFLAGS="-mod=readonly"
 #RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
 
 USER root
-# ca-certificates and make are already present on the FIPS go image.
-# Installing git/curl pulls rf-curated deps that currently fail OpenPGP checks.
+# ca-certificates and make are already present on the hhi go -dev image.
 
 RUN mkdir -p /workspace
 WORKDIR /workspace
@@ -54,10 +53,10 @@ RUN set -xe && \
 
 # Final image
 # FROM alpine:3.14.0
-FROM harness0.harness.io/oci/docker_artifacts/ubi9:9.9-rfcurated
+FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-ubi:1
 USER root
 
-# The curated base image may set a non-root WORKDIR. cloudinfo discovers its
+# The base image may set a non-root WORKDIR. cloudinfo discovers its
 # config.toml via viper's relative "./config" search path, which only resolves
 # to the mounted /config when the working directory is "/". Pin it explicitly so
 # the mounted configuration is found regardless of the base image default.
