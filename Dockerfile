@@ -15,7 +15,7 @@
 
 # Build image
 #FROM golang:1.19.9-buster AS builder
-FROM harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10-dev AS builder
+FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26-dev AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
@@ -23,7 +23,7 @@ ENV GOFLAGS="-mod=readonly"
 #RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
 
 USER root
-# ca-certificates and make are already present on the hhi go -dev image.
+# ca-certificates and make are expected on the hhi go-fips -dev image.
 
 RUN mkdir -p /workspace
 WORKDIR /workspace
