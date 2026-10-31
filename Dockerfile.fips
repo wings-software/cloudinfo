@@ -1,0 +1,58 @@
+# FIPS variant: hhi/go-fips replaces ubi9/go1:*-fips-rfcurated (builder) and ubi9:9.9-rfcurated (runtime).
+# The non-FIPS Dockerfile is handled separately (PR #72); this file does not touch it.
+
+# Build image. go-fips:1.26-dev ships git, make, curl, gcc and CA certs (HSA-155 checked).
+FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26-dev AS builder
+
+ENV GOFLAGS="-mod=readonly"
+
+USER root
+
+RUN mkdir -p /workspace
+WORKDIR /workspace
+
+ARG GOPROXY
+
+COPY go.* /workspace/
+RUN go mod download
+
+COPY Makefile main-targets.mk /workspace/
+
+COPY . /workspace
+
+ARG BUILD_TARGET
+
+# go-fips has no bash: busybox sh and POSIX [ ] instead of [[ ]].
+RUN set -xe && \
+    if [ "${BUILD_TARGET}" = "debug" ]; then \
+        cd /tmp; GOBIN=/workspace/build/debug go get github.com/go-delve/delve/cmd/dlv; cd -; \
+        make build-debug; \
+        mv build/debug /build; \
+    else \
+        make build-release; \
+        mv build/release /build; \
+    fi
+
+
+# Final image: hhi/go-fips (Go FIPS 140-3 module + OpenSSL FIPS provider).
+FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26
+USER root
+
+# cloudinfo discovers its config.toml via viper's relative "./config" search path, which only
+# resolves to the mounted /config when the working directory is "/". Pin it explicitly.
+WORKDIR /
+
+ARG BUILD_TARGET
+
+COPY --from=builder /build/* /usr/local/bin/
+
+COPY configs /etc/cloudinfo/serviceconfig
+
+RUN sed -i "s|dataLocation: ./configs/|dataLocation: /etc/cloudinfo/serviceconfig/|g" /etc/cloudinfo/serviceconfig/services.yaml
+
+ENV CLOUDINFO_SERVICELOADER_SERVICECONFIGLOCATION "/etc/cloudinfo/serviceconfig"
+
+# FIPS_ENABLED=false switches FIPS off at run time; otherwise the image runs as shipped.
+COPY --chmod=755 fips-entrypoint.sh /usr/local/bin/fips-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/fips-entrypoint.sh"]
+CMD ["cloudinfo"]
