@@ -1,11 +1,16 @@
-# FIPS variant: hhi/go-fips replaces ubi9/go1:*-fips-rfcurated (builder) and ubi9:9.9-rfcurated (runtime).
+# FIPS variant: hhios/go1:1.26-fips for both the builder and the runtime stage (same MAJOR.MINOR, 1.26, as before).
 # The non-FIPS Dockerfile is handled separately (PR #72); this file does not touch it.
+#
+# The hhios FIPS image already bakes in ENTRYPOINT ["/usr/local/bin/fips-entrypoint.sh"] (FIPS_ENABLED=false
+# switches FIPS off at run time), so this Dockerfile must NOT copy fips-entrypoint.sh or set its own ENTRYPOINT.
+# GOTOOLCHAIN=local in the image: go.mod needs go 1.26.10, which the 1.26-fips image provides.
 
-# Build image. go-fips:1.26-dev ships git, make, curl, gcc and CA certs (HSA-155 checked).
-FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26-dev AS builder
+# Build image. hhios/go1:1.26-fips ships the Go toolchain (GOFIPS140 set), git, make, gcc, curl and CA certs.
+FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.26-fips AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
+# hhios images run as uid 65534; the build needs root to create /workspace.
 USER root
 
 RUN mkdir -p /workspace
@@ -22,7 +27,7 @@ COPY . /workspace
 
 ARG BUILD_TARGET
 
-# go-fips has no bash: busybox sh and POSIX [ ] instead of [[ ]].
+# hhios has no bash: busybox sh and POSIX [ ] instead of [[ ]].
 RUN set -xe && \
     if [ "${BUILD_TARGET}" = "debug" ]; then \
         cd /tmp; GOBIN=/workspace/build/debug go get github.com/go-delve/delve/cmd/dlv; cd -; \
@@ -34,8 +39,11 @@ RUN set -xe && \
     fi
 
 
-# Final image: hhi/go-fips (Go FIPS 140-3 module + OpenSSL FIPS provider).
-FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26
+# Final image: hhios/go1:1.26-fips (Go FIPS 140-3 module + OpenSSL FIPS provider, baked-in fips-entrypoint.sh).
+# This is the Go toolchain image used as the runtime because no generic hhios FIPS OS runtime is published yet.
+FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.26-fips
+
+# Root only for the build-time steps below; the process runs as the image default (65534).
 USER root
 
 # cloudinfo discovers its config.toml via viper's relative "./config" search path, which only
@@ -52,7 +60,7 @@ RUN sed -i "s|dataLocation: ./configs/|dataLocation: /etc/cloudinfo/serviceconfi
 
 ENV CLOUDINFO_SERVICELOADER_SERVICECONFIGLOCATION "/etc/cloudinfo/serviceconfig"
 
-# FIPS_ENABLED=false switches FIPS off at run time; otherwise the image runs as shipped.
-COPY --chmod=755 fips-entrypoint.sh /usr/local/bin/fips-entrypoint.sh
-ENTRYPOINT ["/usr/local/bin/fips-entrypoint.sh"]
+USER 65534:65534
+
+# No ENTRYPOINT here: the baked-in fips-entrypoint.sh wraps CMD.
 CMD ["cloudinfo"]
