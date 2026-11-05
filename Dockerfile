@@ -14,17 +14,11 @@
 
 
 # Build image
-#FROM golang:1.19.9-buster AS builder
-FROM harness0.harness.io/oci/docker_artifacts/ubi9/go1:1.26.10-fips-rfcurated AS builder
+FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26-dev AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
-#RUN apk add --update --no-cache ca-certificates make git curl mercurial
-#RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
-
 USER root
-# ca-certificates and make are already present on the FIPS go image.
-# Installing git/curl pulls rf-curated deps that currently fail OpenPGP checks.
 
 RUN mkdir -p /workspace
 WORKDIR /workspace
@@ -39,10 +33,14 @@ COPY Makefile main-targets.mk /workspace/
 #COPY --from=frontend /web/dist/web /workspace/web/dist/web
 COPY . /workspace
 
+# Rewrite config path before copy into the runtime image (runtime tag may lack sed/shell tooling intent).
+RUN sed -i "s|dataLocation: ./configs/|dataLocation: /etc/cloudinfo/serviceconfig/|g" \
+      /workspace/configs/services.yaml
+
 ARG BUILD_TARGET
 
 RUN set -xe && \
-    if [[ "${BUILD_TARGET}" == "debug" ]]; then \
+    if [ "${BUILD_TARGET}" = "debug" ]; then \
         cd /tmp; GOBIN=/workspace/build/debug go get github.com/go-delve/delve/cmd/dlv; cd -; \
         make build-debug; \
         mv build/debug /build; \
@@ -53,8 +51,7 @@ RUN set -xe && \
 
 
 # Final image
-# FROM alpine:3.14.0
-FROM harness0.harness.io/oci/docker_artifacts/ubi9:9.9-rfcurated
+FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26
 USER root
 
 # The curated base image may set a non-root WORKDIR. cloudinfo discovers its
@@ -63,21 +60,11 @@ USER root
 # the mounted configuration is found regardless of the base image default.
 WORKDIR /
 
-# RUN apk add --update --no-cache ca-certificates tzdata bash curl
-
-SHELL ["/bin/bash", "-c"]
-
-# set up nsswitch.conf for Go's "netgo" implementation
-# https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-424546457
-# RUN test ! -e /etc/nsswitch.conf && echo 'hosts: files dns' > /etc/nsswitch.conf
-
 ARG BUILD_TARGET
 
 COPY --from=builder /build/* /usr/local/bin/
 
-COPY configs /etc/cloudinfo/serviceconfig
-
-RUN sed -i "s|dataLocation: ./configs/|dataLocation: /etc/cloudinfo/serviceconfig/|g" /etc/cloudinfo/serviceconfig/services.yaml
+COPY --from=builder /workspace/configs /etc/cloudinfo/serviceconfig
 
 ENV CLOUDINFO_SERVICELOADER_SERVICECONFIGLOCATION "/etc/cloudinfo/serviceconfig"
 
