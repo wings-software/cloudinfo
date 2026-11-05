@@ -14,16 +14,15 @@
 
 
 # Build image
-#FROM golang:1.19.9-buster AS builder
-FROM harness0.harness.io/oci/docker_artifacts/hhi/go-fips:1.26-dev AS builder
+# hhios/go1 is the central hhios FIPS Go image. It sets GOFIPS140 and
+# GOTOOLCHAIN=local, so go.mod's "go" line must be satisfied by the image's Go.
+FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.26-fips AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
-#RUN apk add --update --no-cache ca-certificates make git curl mercurial
-#RUN apt-get update && apt-get install -y ca-certificates make git curl mercurial
-
+# The hhios image runs as uid 65534; root is needed to create /workspace and
+# to write the Go module cache. Only the builder stage runs as root.
 USER root
-# ca-certificates and make are expected on the hhi go-fips -dev image.
 
 RUN mkdir -p /workspace
 WORKDIR /workspace
@@ -38,10 +37,14 @@ COPY Makefile main-targets.mk /workspace/
 #COPY --from=frontend /web/dist/web /workspace/web/dist/web
 COPY . /workspace
 
+# Rewrite the config path here so the runtime stage needs no RUN step (and no root).
+RUN sed -i "s|dataLocation: ./configs/|dataLocation: /etc/cloudinfo/serviceconfig/|g" \
+      /workspace/configs/services.yaml
+
 ARG BUILD_TARGET
 
 RUN set -xe && \
-    if [[ "${BUILD_TARGET}" == "debug" ]]; then \
+    if [ "${BUILD_TARGET}" = "debug" ]; then \
         cd /tmp; GOBIN=/workspace/build/debug go get github.com/go-delve/delve/cmd/dlv; cd -; \
         make build-debug; \
         mv build/debug /build; \
@@ -52,31 +55,30 @@ RUN set -xe && \
 
 
 # Final image
-# FROM alpine:3.14.0
-FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-ubi:1
-USER root
+# The runtime stage is also hhios/go1 because no generic hhios FIPS OS runtime
+# image is published. The image already sets
+# ENTRYPOINT ["/usr/local/bin/fips-entrypoint.sh"], which turns FIPS mode on or
+# off from FIPS_ENABLED and then execs CMD. Do not set an ENTRYPOINT here (it
+# would replace the baked-in one) and do not copy fips-entrypoint.sh.
+FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.26-fips
 
-# The base image may set a non-root WORKDIR. cloudinfo discovers its
-# config.toml via viper's relative "./config" search path, which only resolves
-# to the mounted /config when the working directory is "/". Pin it explicitly so
-# the mounted configuration is found regardless of the base image default.
+# The base image may set its own WORKDIR. cloudinfo discovers its config.toml via
+# viper's relative "./config" search path, which only resolves to the mounted
+# /config when the working directory is "/". Pin it explicitly so the mounted
+# configuration is found regardless of the base image default.
 WORKDIR /
 
-# RUN apk add --update --no-cache ca-certificates tzdata bash curl
-
-SHELL ["/bin/bash", "-c"]
-
-# set up nsswitch.conf for Go's "netgo" implementation
-# https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-424546457
-# RUN test ! -e /etc/nsswitch.conf && echo 'hosts: files dns' > /etc/nsswitch.conf
+# Nothing below needs root: the binary and configs are copied in as root-owned,
+# world-readable files, and cloudinfo only has to read them (plus the mounted
+# /config). Run as the hhios default non-root user (the previous runtime stage
+# ran as root).
+USER 65534
 
 ARG BUILD_TARGET
 
 COPY --from=builder /build/* /usr/local/bin/
 
-COPY configs /etc/cloudinfo/serviceconfig
-
-RUN sed -i "s|dataLocation: ./configs/|dataLocation: /etc/cloudinfo/serviceconfig/|g" /etc/cloudinfo/serviceconfig/services.yaml
+COPY --from=builder /workspace/configs /etc/cloudinfo/serviceconfig
 
 ENV CLOUDINFO_SERVICELOADER_SERVICECONFIGLOCATION "/etc/cloudinfo/serviceconfig"
 
