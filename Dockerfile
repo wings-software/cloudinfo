@@ -16,7 +16,7 @@
 # Build image
 # hhios/go1 is the central hhios FIPS Go image. It sets GOFIPS140 and
 # GOTOOLCHAIN=local, so go.mod's "go" line must be satisfied by the image's Go.
-FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.26-fips AS builder
+FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.27-fips AS builder
 
 ENV GOFLAGS="-mod=readonly"
 
@@ -60,7 +60,7 @@ RUN set -xe && \
 # ENTRYPOINT ["/usr/local/bin/fips-entrypoint.sh"], which turns FIPS mode on or
 # off from FIPS_ENABLED and then execs CMD. Do not set an ENTRYPOINT here (it
 # would replace the baked-in one) and do not copy fips-entrypoint.sh.
-FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.26-fips
+FROM harness0.harness.io/oci/docker_artifacts/hhios/go1:1.27-fips
 
 # The base image may set its own WORKDIR. cloudinfo discovers its config.toml via
 # viper's relative "./config" search path, which only resolves to the mounted
